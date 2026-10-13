@@ -1,0 +1,27 @@
+{
+  "name": "code-bearings",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Source-backed repository quizzes for shared learning sessions",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "compile-schema": "node scripts/compile-schema.mjs",
+    "dev": "npm run compile-schema && vite --host 127.0.0.1 --port 4173 --strictPort",
+    "build": "npm run compile-schema && vite build",
+    "build:skill": "npm run compile-schema && node scripts/build-skill.mjs",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "test": "npm run compile-schema && node --test tests/unit/*.test.js",
+    "test:e2e": "npm run build && playwright test",
+    "test:skill": "npm run build:skill && node --test tests/skill/*.test.js",
+    "validate-package": "npm run compile-schema && node scripts/validate-package.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "1.58.2",
+    "ajv": "^8.20.0",
+    "vite": "^8.3.4"
+  }
+}

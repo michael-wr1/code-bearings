@@ -1,0 +1,18 @@
+node_modules/
+dist/
+src/generated/
+test-results/
+playwright-report/
+.DS_Store
+
+# Private repository packages, evidence, and preparation reports
+/local/
+
+# Generated quizzes and review evidence are private by default
+*.quiz.json
+*.preparation.md
+*.independent-solutions.json
+!/tests/fixtures/*.quiz.json
+
+# Exported portable skill; rebuilt from canonical source
+/.skill-build/

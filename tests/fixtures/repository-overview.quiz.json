@@ -1,0 +1,685 @@
+{
+  "formatVersion": "1.0",
+  "payload": {
+    "id": "synthetic-overview",
+    "title": "Example repository: a map of responsibilities",
+    "repository": {
+      "name": "Example repository (synthetic)",
+      "cloneUrl": "https://example.invalid/repository.git",
+      "branch": "main",
+      "commitSha": "1111111111111111111111111111111111111111"
+    },
+    "preparation": {
+      "generatorId": "synthetic-test-generator",
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    "learning": {
+      "scope": "repository-overview",
+      "familiarity": "new-to-repo",
+      "targetMinutes": 25,
+      "coverage": [
+        {
+          "id": "responsibilities",
+          "title": "Component responsibilities",
+          "summary": "Locate state, parsing, and presentation coordination."
+        },
+        {
+          "id": "dependencies",
+          "title": "Dependency boundaries",
+          "summary": "Follow imports and constructor collaborators."
+        },
+        {
+          "id": "flow",
+          "title": "Execution flow",
+          "summary": "Trace loading and rendering in order."
+        }
+      ],
+      "exclusions": [
+        "This is invented test data, not a real repository or a measured learning exercise."
+      ]
+    },
+    "sources": [
+      {
+        "id": "store-source",
+        "path": "src/store.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 5,
+        "code": "export class Store {\n  constructor() { this.entries = new Map(); }\n  save(key, value) { this.entries.set(key, value); }\n  get(key) { return this.entries.get(key); }\n}"
+      },
+      {
+        "id": "loader-source",
+        "path": "src/loader.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 13,
+        "code": "import { Store } from './store.js';\nexport class Loader {\n  constructor(store = new Store(), clock = Date) {\n    this.store = store; this.clock = clock;\n  }\n  async load(read, notify) {\n    const text = await read();\n    const value = JSON.parse(text);\n    this.store.save('current', value);\n    notify(value, this.clock.now());\n    return value;\n  }\n}"
+      },
+      {
+        "id": "controller-source",
+        "path": "src/controller.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 7,
+        "code": "import { Store } from './store.js';\nexport async function show(loader, read, view) {\n  if (typeof read !== 'function') throw new Error('Reader required');\n  const value = await loader.load(read, () => {});\n  view.render(value);\n}\nexport const sharedStore = new Store();"
+      },
+      {
+        "id": "tests-source",
+        "path": "tests/store.test.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 4,
+        "code": "import { Store } from '../src/store.js';\nconst store = new Store();\nstore.save('example', 42);\nif (store.get('example') !== 42) throw new Error('Round trip failed');"
+      }
+    ],
+    "questions": [
+      {
+        "id": "state-owner",
+        "type": "single-choice",
+        "prompt": "Which component owns the in-memory entries?",
+        "conceptIds": [
+          "responsibilities"
+        ],
+        "options": [
+          {
+            "id": "view",
+            "text": "View"
+          },
+          {
+            "id": "store",
+            "text": "Store"
+          },
+          {
+            "id": "loader",
+            "text": "Loader"
+          }
+        ],
+        "explorationSourceIds": [
+          "store-source",
+          "loader-source"
+        ],
+        "answer": {
+          "optionIds": [
+            "store"
+          ],
+          "explanation": "Store creates the Map and implements save and get; Loader delegates storage to it.",
+          "evidence": [
+            {
+              "sourceId": "store-source",
+              "reason": "Store creates the Map and implements save and get; Loader delegates storage to it."
+            },
+            {
+              "sourceId": "loader-source",
+              "reason": "Store creates the Map and implements save and get; Loader delegates storage to it."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "view",
+              "explanation": "View does not match the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "store",
+              "explanation": "Store matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "loader",
+              "explanation": "Loader does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "How might the Store interface change if entries needed persistence?",
+            "sourceIds": [
+              "store-source",
+              "loader-source"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "direct-imports",
+        "type": "multiple-select",
+        "prompt": "Which files directly import Store?",
+        "conceptIds": [
+          "dependencies"
+        ],
+        "options": [
+          {
+            "id": "loader",
+            "text": "Loader"
+          },
+          {
+            "id": "tests",
+            "text": "Store tests"
+          },
+          {
+            "id": "controller",
+            "text": "Controller"
+          },
+          {
+            "id": "website",
+            "text": "Website"
+          }
+        ],
+        "explorationSourceIds": [
+          "loader-source",
+          "controller-source",
+          "tests-source"
+        ],
+        "answer": {
+          "optionIds": [
+            "loader",
+            "tests",
+            "controller"
+          ],
+          "explanation": "The Loader, Controller, and Store test files each directly import Store.",
+          "evidence": [
+            {
+              "sourceId": "loader-source",
+              "reason": "The Loader, Controller, and Store test files each directly import Store."
+            },
+            {
+              "sourceId": "controller-source",
+              "reason": "The Loader, Controller, and Store test files each directly import Store."
+            },
+            {
+              "sourceId": "tests-source",
+              "reason": "The Loader, Controller, and Store test files each directly import Store."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "loader",
+              "explanation": "Loader matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "tests",
+              "explanation": "Store tests matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "controller",
+              "explanation": "Controller matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "website",
+              "explanation": "Website does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "What might a shared store mean for dependency ownership?",
+            "sourceIds": [
+              "loader-source",
+              "controller-source",
+              "tests-source"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "render-boundary",
+        "type": "single-choice",
+        "prompt": "Which function coordinates loading and rendering?",
+        "conceptIds": [
+          "responsibilities"
+        ],
+        "options": [
+          {
+            "id": "controller",
+            "text": "show"
+          },
+          {
+            "id": "store",
+            "text": "Store.save"
+          },
+          {
+            "id": "loader",
+            "text": "Loader.load"
+          }
+        ],
+        "explorationSourceIds": [
+          "controller-source",
+          "loader-source"
+        ],
+        "answer": {
+          "optionIds": [
+            "controller"
+          ],
+          "explanation": "show awaits Loader.load and then calls view.render.",
+          "evidence": [
+            {
+              "sourceId": "controller-source",
+              "reason": "show awaits Loader.load and then calls view.render."
+            },
+            {
+              "sourceId": "loader-source",
+              "reason": "show awaits Loader.load and then calls view.render."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "controller",
+              "explanation": "show matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "store",
+              "explanation": "Store.save does not match the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "loader",
+              "explanation": "Loader.load does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "Where would you handle a failed read before rendering?",
+            "sourceIds": [
+              "controller-source",
+              "loader-source"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "load-flow",
+        "type": "ordering",
+        "prompt": "Order the operations inside Loader.load.",
+        "conceptIds": [
+          "flow"
+        ],
+        "options": [
+          {
+            "id": "notify",
+            "text": "Notify the caller"
+          },
+          {
+            "id": "save",
+            "text": "Save the value"
+          },
+          {
+            "id": "read",
+            "text": "Read the text"
+          },
+          {
+            "id": "parse",
+            "text": "Parse the text"
+          }
+        ],
+        "explorationSourceIds": [
+          "loader-source"
+        ],
+        "answer": {
+          "optionIds": [
+            "read",
+            "parse",
+            "save",
+            "notify"
+          ],
+          "explanation": "Loader.load awaits the text, parses JSON, saves the result, and then notifies the caller.",
+          "evidence": [
+            {
+              "sourceId": "loader-source",
+              "reason": "Loader.load awaits the text, parses JSON, saves the result, and then notifies the caller."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "notify",
+              "explanation": "Notify the caller belongs at step 4."
+            },
+            {
+              "optionId": "save",
+              "explanation": "Save the value belongs at step 3."
+            },
+            {
+              "optionId": "read",
+              "explanation": "Read the text belongs at step 1."
+            },
+            {
+              "optionId": "parse",
+              "explanation": "Parse the text belongs at step 2."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "What state would remain if notification threw an exception?",
+            "sourceIds": [
+              "loader-source"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "parse-owner",
+        "type": "single-choice",
+        "prompt": "Where does JSON text become a value?",
+        "conceptIds": [
+          "responsibilities"
+        ],
+        "options": [
+          {
+            "id": "store",
+            "text": "Store.get"
+          },
+          {
+            "id": "loader",
+            "text": "Loader.load"
+          },
+          {
+            "id": "view",
+            "text": "View.render"
+          }
+        ],
+        "explorationSourceIds": [
+          "loader-source",
+          "store-source"
+        ],
+        "answer": {
+          "optionIds": [
+            "loader"
+          ],
+          "explanation": "Loader.load calls JSON.parse before passing the value to Store.",
+          "evidence": [
+            {
+              "sourceId": "loader-source",
+              "reason": "Loader.load calls JSON.parse before passing the value to Store."
+            },
+            {
+              "sourceId": "store-source",
+              "reason": "Loader.load calls JSON.parse before passing the value to Store."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "store",
+              "explanation": "Store.get does not match the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "loader",
+              "explanation": "Loader.load matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "view",
+              "explanation": "View.render does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "How could parsing be tested separately from reading?",
+            "sourceIds": [
+              "loader-source",
+              "store-source"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "loader-dependencies",
+        "type": "multiple-select",
+        "prompt": "Which collaborators are injected through the Loader constructor?",
+        "conceptIds": [
+          "dependencies"
+        ],
+        "options": [
+          {
+            "id": "store",
+            "text": "Store"
+          },
+          {
+            "id": "clock",
+            "text": "Clock"
+          },
+          {
+            "id": "view",
+            "text": "View"
+          }
+        ],
+        "explorationSourceIds": [
+          "loader-source"
+        ],
+        "answer": {
+          "optionIds": [
+            "store",
+            "clock"
+          ],
+          "explanation": "The constructor accepts store and clock; view is not a constructor parameter.",
+          "evidence": [
+            {
+              "sourceId": "loader-source",
+              "reason": "The constructor accepts store and clock; view is not a constructor parameter."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "store",
+              "explanation": "Store matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "clock",
+              "explanation": "Clock matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "view",
+              "explanation": "View does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "What would a fake clock make easier to test?",
+            "sourceIds": [
+              "loader-source"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "show-flow",
+        "type": "ordering",
+        "prompt": "Order the successful path through show.",
+        "conceptIds": [
+          "flow"
+        ],
+        "options": [
+          {
+            "id": "render",
+            "text": "Render the value"
+          },
+          {
+            "id": "validate",
+            "text": "Check the reader"
+          },
+          {
+            "id": "fetch",
+            "text": "Await the loader"
+          }
+        ],
+        "explorationSourceIds": [
+          "controller-source"
+        ],
+        "answer": {
+          "optionIds": [
+            "validate",
+            "fetch",
+            "render"
+          ],
+          "explanation": "show first validates the reader, awaits the loader, and then renders the value.",
+          "evidence": [
+            {
+              "sourceId": "controller-source",
+              "reason": "show first validates the reader, awaits the loader, and then renders the value."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "render",
+              "explanation": "Render the value belongs at step 3."
+            },
+            {
+              "optionId": "validate",
+              "explanation": "Check the reader belongs at step 1."
+            },
+            {
+              "optionId": "fetch",
+              "explanation": "Await the loader belongs at step 2."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "How would asynchronous rendering affect this contract?",
+            "sourceIds": [
+              "controller-source"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "test-scope",
+        "type": "single-choice",
+        "prompt": "What does the included Store test exercise?",
+        "conceptIds": [
+          "responsibilities"
+        ],
+        "options": [
+          {
+            "id": "round-trip",
+            "text": "Saving and reading an entry"
+          },
+          {
+            "id": "render",
+            "text": "Rendering a view"
+          },
+          {
+            "id": "parse",
+            "text": "Parsing JSON text"
+          }
+        ],
+        "explorationSourceIds": [
+          "tests-source"
+        ],
+        "answer": {
+          "optionIds": [
+            "round-trip"
+          ],
+          "explanation": "The test saves 42 under a key and checks that get returns it.",
+          "evidence": [
+            {
+              "sourceId": "tests-source",
+              "reason": "The test saves 42 under a key and checks that get returns it."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "round-trip",
+              "explanation": "Saving and reading an entry matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "render",
+              "explanation": "Rendering a view does not match the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "parse",
+              "explanation": "Parsing JSON text does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "Which failure cases would you add for a production store?",
+            "sourceIds": [
+              "tests-source"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "verification": {
+    "status": "passed",
+    "method": "independent-subagent",
+    "verifierId": "synthetic-test-verifier",
+    "verifiedAt": "2026-01-01T00:00:01Z",
+    "sourceCommitSha": "1111111111111111111111111111111111111111",
+    "reviewedPayloadSha256": "a97317a8254e1bdf3179f67bd74d0c9ef8489a6ced38447e8a56b7557ba20b86",
+    "independentSolutionsRecorded": true,
+    "summary": "Fabricated attestation for automated testing only. No independent agent review was performed on this fictional fixture.",
+    "questionReviews": [
+      {
+        "questionId": "state-owner",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "store-source",
+          "loader-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "direct-imports",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "loader-source",
+          "controller-source",
+          "tests-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "render-boundary",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "controller-source",
+          "loader-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "load-flow",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "loader-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "parse-owner",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "loader-source",
+          "store-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "loader-dependencies",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "loader-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "show-flow",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "controller-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "test-scope",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "tests-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      }
+    ]
+  }
+}
