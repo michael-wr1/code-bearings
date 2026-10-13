@@ -36,7 +36,7 @@ Each source has `id`, repository-relative POSIX `path`, `language`, one-based in
 Semantic requirements:
 
 - Source IDs and coverage IDs are unique; paths are relative, contain no empty, `.` or `..` segments, and never begin with `/` or use backslashes.
-- `endLine >= startLine`. The number of LF-separated lines in `code` equals `endLine - startLine + 1`. No extra trailing delimiter is added to an excerpt.
+- `endLine >= startLine`. The number of LF-separated lines in `code` equals `endLine - startLine + 1`. No extra trailing delimiter is added to an excerpt. A file's terminal newline ends its last line; it does not create another source line. Preserve actual final blank lines instead of trimming all trailing newlines.
 - Excerpts are copied from the Git object at `repository.commitSha`, normalized from CRLF to LF, with no trim, manual edits, omitted interior lines, or fabricated code. The preparer and verifier check them against Git. The offline viewer can check line counts, but cannot prove correspondence to a repository it does not possess.
 - For external links, preparation and verification check revision/path/range agreement. The viewer checks HTTPS before enabling a link. It does not fetch the link to validate evidence.
 

@@ -101,6 +101,44 @@ test('source comparison rejects fabricated code even with a consistent review di
   assert.equal(result.code, 1);
   assert.match(result.stderr, /Source mismatch: src\/store.js/);
 });
+test('source comparison distinguishes a terminal newline from an actual final blank line', async () => {
+  const endingCheckout = join(directory, 'line-ending-repository');
+  await mkdir(endingCheckout);
+  const endingGit = async (...args) => (await execute('git', ['-C', endingCheckout, ...args])).stdout.trim();
+  await endingGit('init', '-b', 'main');
+  const quiz = structuredClone(committedPackage);
+  for (const source of quiz.payload.sources) {
+    const path = join(endingCheckout, source.path);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, source.code.replace(/\n/g, '\r\n') + '\r\n');
+  }
+  await endingGit('add', '.');
+  await endingGit('-c', 'user.name=Fixture Author', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-m', 'Synthetic files with terminal newlines');
+  quiz.payload.repository.commitSha = await endingGit('rev-parse', 'HEAD');
+  quiz.verification.sourceCommitSha = quiz.payload.repository.commitSha;
+  const validPath = await writePackage('terminal-newline.quiz.json', quiz);
+  assert.equal((await run('verify-sources', validPath, endingCheckout)).code, 0);
+
+  const phantom = structuredClone(quiz);
+  phantom.payload.sources[0].endLine++;
+  phantom.payload.sources[0].code += '\n';
+  const phantomPath = await writePackage('phantom-line.quiz.json', phantom);
+  assert.equal((await run('validate', phantomPath)).code, 0);
+  const rejected = await run('verify-sources', phantomPath, endingCheckout);
+  assert.equal(rejected.code, 1);
+  assert.match(rejected.stderr, /Source mismatch: src\/store.js/);
+
+  const source = quiz.payload.sources[0];
+  await writeFile(join(endingCheckout, source.path), source.code.replace(/\n/g, '\r\n') + '\r\n\r\n');
+  await endingGit('add', source.path);
+  await endingGit('-c', 'user.name=Fixture Author', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-m', 'Synthetic file with a real final blank line');
+  source.endLine++;
+  source.code += '\n';
+  quiz.payload.repository.commitSha = await endingGit('rev-parse', 'HEAD');
+  quiz.verification.sourceCommitSha = quiz.payload.repository.commitSha;
+  const blankPath = await writePackage('final-blank-line.quiz.json', quiz);
+  assert.equal((await run('verify-sources', blankPath, endingCheckout)).code, 0);
+});
 test('source comparison accepts a remote-tracking branch and rejects an unknown branch', async () => {
   await git('update-ref', 'refs/remotes/example/released', committedPackage.payload.repository.commitSha);
   const remote = structuredClone(committedPackage);

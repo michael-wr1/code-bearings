@@ -2,85 +2,107 @@
 
 **Find your bearings in the code.**
 
-Agent-prepared, source-backed quizzes that help engineers build and reinforce a mental map of a codebase, especially as they rely more on AI-generated code.
+When code is written faster than you can explore it, keeping a mental map of a repository gets harder. Code Bearings turns repository structure into short quizzes about responsibilities, dependencies, and execution flow. It’s designed for solo engineers and small teams working with AI-generated code.
 
-A facilitator shares a browser window, or a solo engineer works through the same flow:
+Use it on your own or share a browser window in a team call. Answer a question, reveal the explanation and source evidence, then discuss how the code connects. Each quiz ends with a learning recap rather than an overall score.
 
-**Answer → reveal → explore source and discuss.**
+![A Code Bearings question asking where answer comparison and result rendering belong, with four choices and a Reveal answer button.](assets/screenshots/question.png)
 
-Quizzes are prepared before the session through one request to a coding agent, which delegates verification to an independent subagent. Portable packages include source excerpts, filenames, line numbers, and the repository URL, branch, and full commit SHA.
+<details>
+<summary>See the revealed answer and source evidence</summary>
 
-The agreed delivery model is a reusable browser viewer that imports separate quiz packages. The viewer is intended for local use; public hosting is not required.
+![The revealed answer with an explanation, discussion topic, and source references showing session.js with original line numbers.](assets/screenshots/revealed-answer.png)
 
-## Run locally
+</details>
 
-Requires Node.js 22.12 or newer and npm.
+## Try the example
+
+Requires **Node.js 22.12 or newer**, npm, and Git. These commands use POSIX shell syntax; the setup has been tested on macOS.
 
 ```bash
+git clone https://github.com/michael-wr1/code-bearings.git
+cd code-bearings
 npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:4173**. Choose a `.quiz.json` package from your filesystem. Review the repository revision and coverage, then start the session.
+1. Open **http://127.0.0.1:4173**.
+2. Choose **Open quiz package** and select [examples/code-bearings.quiz.json](examples/code-bearings.quiz.json) from your checkout.
+3. Select **Start quiz**. Choose an answer, or **I’m not sure**, then reveal it and explore the evidence.
 
-The viewer tracks only this window's current session. Refreshing or closing the page clears answers and progress. Package checks validate structure, references, and the recorded independent review's payload digest; source correctness and agent independence come from the preparation workflow.
+The example is a newcomer overview of Code Bearings: **10 questions** across single-choice, multiple-select, and ordering, with a **25-minute target** including discussion. It was prepared from committed source and independently verified. Its source revision is pinned to [`db3133a`](https://github.com/michael-wr1/code-bearings/tree/db3133a9d148b06ba56845e7903a90c661c2f338) on `main`; filenames and line numbers refer to that snapshot, which may be older than your checkout. The target duration is a guide, not a measured completion time.
 
-For a production build:
+To inspect that exact source in another checkout:
 
 ```bash
-npm run build
-npm run preview
+git clone https://github.com/michael-wr1/code-bearings.git code-bearings-example
+cd code-bearings-example
+git checkout --detach db3133a9d148b06ba56845e7903a90c661c2f338
 ```
 
-The resulting `dist/` directory contains static assets and can be served locally. Playing a loaded quiz requires no provider APIs, checkout, or external network requests. External source links open only when selected.
+You can play a package without its original repository: source excerpts are embedded in the file. Answers and progress last until you refresh or close the page. After the viewer has loaded, playing an imported quiz needs no network connection. Optional external source links open when selected.
 
-## Prepare another quiz
+## Prepare a quiz for your repository
 
-Use the [Code Bearings quiz skill](skills/code-bearings-quiz/SKILL.md) from a coding-agent session in the repository you want to learn. It gathers missing inputs, defaults to a newcomer overview of the current branch's committed tip and a 25-minute session, and asks where to save when no private destination is established. You can supply a different repository, branch/commit, familiarity, or duration upfront.
+The viewer and preparation skill are free under the MIT license. Preparing new quizzes requires your own access to a coding agent, such as **Codex or Claude Code**, with independent subagent support. Generation and verification happen before play; the viewer needs no model-provider API keys.
 
-Build the portable skill from this checkout:
+From the Code Bearings checkout, build the portable skill:
 
 ```bash
-npm ci
 npm run build:skill
 ```
 
-The output is `.skill-build/code-bearings-quiz/`. It includes the preparation protocol, package contract, schema, and standalone tools. Copy the **whole exported folder**, rather than just `SKILL.md`, into your coding agent's skills directory. Once installed, it needs Node.js 22.12 or newer and Git; its tools require no npm dependencies or viewer checkout. The coding environment must support a fresh independent verifier subagent.
+Copy the **whole exported folder**, including its references, assets, tools, and license, into your agent’s skills directory. These commands are for a first installation; when updating, replace the existing skill folder with the new export.
 
-For a first local Codex installation:
+For Codex:
 
 ```bash
 mkdir -p ~/.agents/skills
 cp -R .skill-build/code-bearings-quiz ~/.agents/skills/
 ```
 
-For a first local Claude Code installation:
+For Claude Code:
 
 ```bash
 mkdir -p ~/.claude/skills
 cp -R .skill-build/code-bearings-quiz ~/.claude/skills/
 ```
 
-In Codex, invoke `$code-bearings-quiz`; in Claude Code, invoke `/code-bearings-quiz`. For example:
+Start a new coding-agent session **in the repository you want to learn**. Invoke `$code-bearings-quiz` in Codex or `/code-bearings-quiz` in Claude Code, then provide a request such as:
 
 ```text
-Prepare an overview of this repository for newcomers, targeting 25 minutes.
-Save it to ~/quizzes/.
+Prepare a repository overview for newcomers using this branch’s committed tip.
+Target 25 minutes including discussion. Save it to ~/quizzes/.
 ```
 
-The agent resolves the committed snapshot and coordinates generation, independent blind solving, and exact-payload review. It returns a `.quiz.json` file, a `.preparation.md` report, and `.independent-solutions.json` evidence in your chosen private destination. Import the finalized quiz into the viewer. Preparation remains incomplete if independent verification or required tooling is unavailable.
+You can specify a branch, commit, familiarity level, duration, and destination. Missing familiarity and duration default to **new to the repo** and **25 minutes**. The agent asks for an output destination if you haven’t supplied one. Only committed code is used, and the package records the clone URL, branch, and full SHA.
 
-The detailed [preparation protocol](skills/code-bearings-quiz/references/preparation.md) is also usable by agents without skill discovery. It and the [package contract](skills/code-bearings-quiz/references/package-contract.md) are maintained with the skill.
+The agent creates the questions, asks a fresh verifier subagent to solve them from source before seeing the answer key, then has that verifier review the complete package. Preparation is incomplete if independent verification or required checks cannot run. The agent returns a `.quiz.json` file plus preparation and independent-solution records. Open the finalized quiz in the viewer; keep packages for private repositories and their supporting records in a private destination.
 
-Local installation and invocation follow the [official Codex skill documentation](https://learn.chatgpt.com/docs/build-skills) and [Claude Code skill documentation](https://code.claude.com/docs/en/skills). The portable tools have automated checks; a full native skill invocation in each host remains a separate compatibility check.
+Once installed, the exported skill’s tools need **Node.js 22.12 or newer and Git**, with no npm dependencies or viewer checkout. See the [skill instructions](skills/code-bearings-quiz/SKILL.md), [preparation protocol](skills/code-bearings-quiz/references/preparation.md), and [package contract](skills/code-bearings-quiz/references/package-contract.md) for details.
 
-Validate a package locally:
+## Tested environments and project status
+
+Code Bearings is an **early preview** maintained as a personal project. External pull requests are not accepted.
+
+- **Viewer:** Chromium through Playwright 1.58.2 on macOS, including offline playback and keyboard ordering.
+- **Preparation:** Codex CLI 0.162.1 and Claude Code 2.1.293 on macOS, using installed skills and actual independent verifier subagents.
+- **Runtime used for these checks:** Node.js 23.11.0 on macOS 27.0.1.
+
+Other operating systems, browsers, and agent versions have not yet been verified. Automated accessibility checks have passed; real screen-reader use and unassisted participant trials remain untested. Session duration and learning effectiveness have not been measured. For automated Claude Code print-mode runs, leave session persistence enabled so the verifier can continue from blind solving to full review in a separate invocation.
+
+## Build and check
+
+For a production viewer:
 
 ```bash
-npm run validate-package -- /path/to/your-package.quiz.json
+npm run build
+npm run preview
 ```
 
-## Development checks
+Open **http://127.0.0.1:4173**. The `dist/` directory contains static assets suitable for a local web server. The example stays separate from the viewer build; import it as a file.
+
+Run the project checks:
 
 ```bash
 npm test
@@ -88,30 +110,18 @@ npm run test:skill
 npm run test:e2e
 ```
 
-The browser suite tests a production build using pinned Playwright 1.58.2. On a fresh workstation, install its Chromium browser if needed with `npx playwright install chromium`; an existing matching browser is reused. The suite uses fictional test data and covers direct answer reveal, source concealment, keyboard ordering, imports, offline play, responsive layouts, and automated accessibility. Real screen-reader and participant learning checks are recorded separately.
+The browser suite uses pinned Playwright 1.58.2. If its matching Chromium is missing, install it with `npx playwright install chromium`. Browser tests use fictional fixtures; the public example has a separate source-based independent review.
 
-## Project status
+To check a package from this checkout:
 
-The first reusable viewer is implemented, with a versioned package contract and a documented independent verification workflow. Code Bearings is free and open source under the MIT license.
+```bash
+npm run validate-package -- examples/code-bearings.quiz.json
+```
 
-- [Package contract](skills/code-bearings-quiz/references/package-contract.md) and [JSON Schema](schema/quiz-package-v1.schema.json)
-- [Quiz preparation instructions](skills/code-bearings-quiz/references/preparation.md)
-- [Quiz preparation skill](skills/code-bearings-quiz/SKILL.md)
-- [Agent guidance](AGENTS.md)
-
-The first version focuses on repository-overview quizzes, shared sessions, and a selectable familiarity level and duration. Defaults are **new to the repo** and **20–30 minutes**, including exploration and discussion.
-
-Launch question formats are **single-choice, multiple-select, and ordering**, covering responsibilities, dependencies, and execution flow.
-
-The viewer provides question-level correctness and an end-of-session learning recap, without an overall numerical score. Discussion topics appear after answer reveal and are collected in the final recap.
-
-Answers, progress, and the recap are tracked only for the current session. Saved history and cross-session resume are outside the first version.
-
-
-Quiz content is supplied by the user and is not bundled with the application. Keep private packages and preparation evidence under the ignored `local/` directory or outside this checkout. Public test fixtures are synthetic and do not represent an independently verified repository. Participant timing and learning effectiveness remain to be measured.
+Import checks confirm package structure, references, and consistency with its recorded review and payload digest. They do not authenticate an agent identity or prove source correctness; those checks belong to preparation and independent source review. The [v1 schema](schema/quiz-package-v1.schema.json) and package contract describe the format. [AGENTS.md](AGENTS.md) provides repository guidance for coding agents.
 
 ## License
 
-Code Bearings, including its quiz-preparation skill, is licensed under the [MIT License](LICENSE).
+Code Bearings, its preparation skill, and the included Code Bearings example are licensed under the [MIT License](LICENSE).
 
-Production builds include `LICENSE` and `THIRD-PARTY-NOTICES.txt`. The exported skill includes `LICENSE` and `assets/third-party-notices.txt`; keep these files with redistributed copies. Dependencies retain their own licenses. Imported quiz packages and source excerpts are not covered by the Code Bearings license.
+Viewer builds include `LICENSE` and `THIRD-PARTY-NOTICES.txt`. Skill exports include `LICENSE` and `assets/third-party-notices.txt`; retain these files when redistributing. Dependencies retain their own licenses. Packages you prepare for other repositories may contain source with different licenses; the Code Bearings license does not relicense that source.

@@ -48,11 +48,15 @@ Invoke an actual subagent in a fresh context, without inheriting the generation 
 
 Do not provide the candidate answer key, explanations, discussion prompts, verifier verdicts, or a generator summary claiming correctness. Exploration excerpts can be checked in the next phase; independent solving should start from the repository.
 
-Wait for the subagent's written independent solutions before giving it the candidate. Record the actual verifier identity and preserve the solutions with the preparation report. Identity can be a tool-issued thread/task identifier; never invent a successful subagent run.
+Wait for the subagent to return its written independent solutions before giving it the candidate in a separate invocation. Do not include a candidate payload path or conditional instructions to open it later in the blind-solving request. File timestamps and instructions to do both phases in order within one invocation do not satisfy this handoff.
+
+Record the actual verifier identity and preserve the solutions with the preparation report. Identity can be a tool-issued thread/task identifier; never invent a successful subagent run. When the coordinator receives a tool-issued identity, pass it back to the verifier for its final record instead of substituting an unknown-identity description.
 
 ## 4. Delegate complete review to that verifier
 
-After independent solutions are recorded, provide the complete candidate payload and the package contract. Require the verifier to compare its solutions, inspect each alternative, check exact source excerpts/ranges, explanations, and discussion premises, and report any disagreement or unsupported claim.
+After independent solutions are recorded and returned, resume or message that same verifier with the complete candidate payload and the package contract. Require the verifier to compare its solutions, inspect each alternative, check exact source excerpts/ranges, explanations, and discussion premises, and report any disagreement or unsupported claim.
+
+If the host cannot resume or contact the verifier, report incomplete preparation and the actual limitation. A replacement verifier must finish a fresh blind-only invocation and return its written solutions before receiving the candidate. Do not merge blind solving and review into one request to work around missing transcripts. In CLI/print-mode tests, retain the session state required by the host's subagent resume mechanism.
 
 If content is revised, the verifier must review the revised exact payload. Questions with material prompt changes need a fresh blind-solve pass in a new verifier context; do not reuse a prior answer as independent evidence for a different question. Resolve every finding through revision and review or exclude the question and record why. After at most two revision rounds, return incomplete preparation if unresolved findings remain; a user can explicitly request another attempt.
 

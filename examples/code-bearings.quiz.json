@@ -1,0 +1,1180 @@
+{
+  "formatVersion": "1.0",
+  "payload": {
+    "id": "code-bearings-db3133a-overview",
+    "title": "Code Bearings: from prepared package to learning session",
+    "repository": {
+      "name": "code-bearings",
+      "cloneUrl": "https://github.com/michael-wr1/code-bearings.git",
+      "branch": "main",
+      "commitSha": "db3133a9d148b06ba56845e7903a90c661c2f338"
+    },
+    "preparation": {
+      "generatorId": "/root",
+      "createdAt": "2026-10-13T19:33:52Z"
+    },
+    "learning": {
+      "scope": "repository-overview",
+      "familiarity": "new-to-repo",
+      "targetMinutes": 25,
+      "coverage": [
+        {
+          "id": "delivery-boundaries",
+          "title": "Repository map",
+          "summary": "Connect agent preparation, portable quiz content, core behavior, and browser presentation."
+        },
+        {
+          "id": "import-provenance",
+          "title": "Import and provenance",
+          "summary": "Trace file bytes into a ready quiz and distinguish recorded-review checks from source-based review."
+        },
+        {
+          "id": "session-learning",
+          "title": "Learning session",
+          "summary": "Follow response comparison, state transitions, and the timing of feedback, evidence, and discussion."
+        },
+        {
+          "id": "safe-presentation",
+          "title": "Content presentation",
+          "summary": "Understand how imported explanations and code excerpts reach the DOM as text."
+        },
+        {
+          "id": "build-portability",
+          "title": "Build and export",
+          "summary": "Connect canonical schema compilation and shared validation to browser builds and the installed skill."
+        }
+      ],
+      "exclusions": [
+        "Detailed CSS, responsive layout, and keyboard/focus behavior.",
+        "Exhaustive JSON parser and canonicalization algorithms, every error path, and all validation limits.",
+        "Test-suite implementation, license-notice generation, and hosting or distribution operations.",
+        "Uncommitted changes, later revisions, and future product capabilities.",
+        "Measured session duration, learning effectiveness, and live browser or assistive-technology evaluation."
+      ]
+    },
+    "sources": [
+      {
+        "id": "delivery",
+        "path": "README.md",
+        "language": "markdown",
+        "startLine": 7,
+        "endLine": 13,
+        "code": "A facilitator shares a browser window, or a solo engineer works through the same flow:\n\n**Answer → reveal → explore source and discuss.**\n\nQuizzes are prepared before the session through one request to a coding agent, which delegates verification to an independent subagent. Portable packages include source excerpts, filenames, line numbers, and the repository URL, branch, and full commit SHA.\n\nThe agreed delivery model is a reusable browser viewer that imports separate quiz packages. The viewer is intended for local use; public hosting is not required."
+      },
+      {
+        "id": "local-play",
+        "path": "README.md",
+        "language": "markdown",
+        "startLine": 24,
+        "endLine": 35,
+        "code": "Open **http://127.0.0.1:4173**. Choose a `.quiz.json` package from your filesystem. Review the repository revision and coverage, then start the session.\n\nThe viewer tracks only this window's current session. Refreshing or closing the page clears answers and progress. Package checks validate structure, references, and the recorded independent review's payload digest; source correctness and agent independence come from the preparation workflow.\n\nFor a production build:\n\n```bash\nnpm run build\nnpm run preview\n```\n\nThe resulting `dist/` directory contains static assets and can be served locally. Playing a loaded quiz requires no provider APIs, checkout, or external network requests. External source links open only when selected."
+      },
+      {
+        "id": "portable-install",
+        "path": "README.md",
+        "language": "markdown",
+        "startLine": 41,
+        "endLine": 48,
+        "code": "Build the portable skill from this checkout:\n\n```bash\nnpm ci\nnpm run build:skill\n```\n\nThe output is `.skill-build/code-bearings-quiz/`. It includes the preparation protocol, package contract, schema, and standalone tools. Copy the **whole exported folder**, rather than just `SKILL.md`, into your coding agent's skills directory. Once installed, it needs Node.js 22.12 or newer and Git; its tools require no npm dependencies or viewer checkout. The coding environment must support a fresh independent verifier subagent."
+      },
+      {
+        "id": "outcomes",
+        "path": "src/core/session.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 9,
+        "code": "const copy = (response) => response === null ? null : [...response];\n\nexport function outcome(question, response) {\n  if (response === null) return 'unanswered';\n  const expected = question.answer.optionIds;\n  const actual = question.type === 'multiple-select' ? [...response].sort() : response;\n  const reference = question.type === 'multiple-select' ? [...expected].sort() : expected;\n  return actual.length === reference.length && actual.every((id, index) => id === reference[index]) ? 'correct' : 'revisit';\n}"
+      },
+      {
+        "id": "session-records",
+        "path": "src/core/session.js",
+        "language": "javascript",
+        "startLine": 11,
+        "endLine": 25,
+        "code": "export class QuizSession {\n  constructor(quiz) {\n    this.quiz = quiz;\n    this.activeIndex = 0;\n    this.viewIndex = 0;\n    this.mode = 'session';\n    this.records = quiz.payload.questions.map((question) => ({\n      phase: 'attempt', response: null,\n      draft: question.type === 'ordering' ? question.options.map((option) => option.id) : [],\n      openedSources: new Set(),\n    }));\n  }\n  get question() { return this.quiz.payload.questions[this.viewIndex]; }\n  get record() { return this.records[this.viewIndex]; }\n  get complete() { return this.records.every((record) => record.phase === 'revealed'); }"
+      },
+      {
+        "id": "session-answer",
+        "path": "src/core/session.js",
+        "language": "javascript",
+        "startLine": 26,
+        "endLine": 47,
+        "code": "  canAnswer(response = this.record.draft) {\n    if (!Array.isArray(response)) return false;\n    const allowed = this.question.options.map((option) => option.id);\n    if (new Set(response).size !== response.length || response.some((id) => !allowed.includes(id))) return false;\n    if (this.question.type === 'single-choice') return response.length === 1;\n    if (this.question.type === 'multiple-select') return response.length >= 1;\n    return response.length === allowed.length;\n  }\n  setDraft(response) {\n    if (this.record.phase === 'revealed') throw new Error('Revealed answers cannot be changed.');\n    const allowed = this.question.options.map((option) => option.id);\n    if (!Array.isArray(response) || new Set(response).size !== response.length || response.some((id) => !allowed.includes(id))) throw new Error('Invalid response.');\n    if (this.question.type === 'single-choice' && response.length > 1) throw new Error('Choose one answer.');\n    if (this.question.type === 'ordering' && response.length !== allowed.length) throw new Error('Keep every ordering item.');\n    this.record.draft = copy(response);\n  }\n  reveal(unsure = false) {\n    if (this.record.phase !== 'attempt') throw new Error('This answer is already revealed.');\n    if (!unsure && !this.canAnswer()) throw new Error('Choose an answer or reveal as unsure.');\n    this.record.response = unsure ? null : copy(this.record.draft);\n    this.record.phase = 'revealed';\n  }"
+      },
+      {
+        "id": "session-progress",
+        "path": "src/core/session.js",
+        "language": "javascript",
+        "startLine": 48,
+        "endLine": 62,
+        "code": "  next() {\n    if (this.viewIndex !== this.activeIndex || this.record.phase !== 'revealed') throw new Error('Reveal the current answer before advancing.');\n    if (this.activeIndex === this.records.length - 1) this.mode = 'recap';\n    else { this.activeIndex++; this.viewIndex = this.activeIndex; }\n  }\n  review(index) {\n    if (!Number.isInteger(index) || index < 0 || index > this.activeIndex || (index !== this.activeIndex && this.records[index].phase !== 'revealed')) throw new Error('That question is not yet available.');\n    this.viewIndex = index;\n    this.mode = 'session';\n  }\n  recap() {\n    if (!this.complete) throw new Error('Complete the quiz before opening its recap.');\n    this.mode = 'recap';\n  }\n}"
+      },
+      {
+        "id": "dom-text",
+        "path": "src/main.js",
+        "language": "javascript",
+        "startLine": 17,
+        "endLine": 30,
+        "code": "function el(tag, properties = {}, ...children) {\n  const node = document.createElement(tag);\n  for (const [key, value] of Object.entries(properties)) {\n    if (value === false || value == null) continue;\n    if (key.startsWith('on')) node.addEventListener(key.slice(2).toLowerCase(), value);\n    else if (key === 'class') node.className = value;\n    else if (key === 'checked') node.checked = value;\n    else node.setAttribute(key, value === true ? '' : String(value));\n  }\n  for (const child of children.flat(Infinity)) {\n    if (child != null && child !== false) node.append(child instanceof Node ? child : document.createTextNode(String(child)));\n  }\n  return node;\n}"
+      },
+      {
+        "id": "import-ui",
+        "path": "src/main.js",
+        "language": "javascript",
+        "startLine": 74,
+        "endLine": 105,
+        "code": "function acceptQuiz(candidate) {\n  const replace = () => { quiz = candidate; session = null; clearError(); render(); focus(); say('Quiz package ready.'); };\n  if (session) confirm('Replace this session?', 'Its answers and progress will be cleared.', 'Replace session', replace);\n  else replace();\n}\nasync function load(importer) {\n  const sequence = ++importSequence;\n  importing = true;\n  openButton.disabled = true;\n  clearError();\n  say('Checking quiz package.');\n  try {\n    const candidate = await importer();\n    if (sequence === importSequence) acceptQuiz(candidate);\n  } catch (error) {\n    if (sequence === importSequence) showError(error);\n  } finally {\n    if (sequence === importSequence) {\n      importing = false;\n      openButton.disabled = false;\n    }\n  }\n}\nopenButton.addEventListener('click', () => fileInput.click());\nfileInput.addEventListener('change', () => {\n  const file = fileInput.files[0];\n  fileInput.value = '';\n  if (!file) return;\n  load(async () => {\n    if (file.size > MAX_PACKAGE_BYTES) throw new PackageError('package-too-large', 'Quiz packages must be 10 MiB or smaller.');\n    return importPackageBytes(await file.arrayBuffer());\n  });"
+      },
+      {
+        "id": "ready-ui",
+        "path": "src/main.js",
+        "language": "javascript",
+        "startLine": 182,
+        "endLine": 196,
+        "code": "function readyView(main) {\n  const payload = quiz.payload;\n  main.append(el('h1', { id: 'page-title', tabindex: '-1' }, payload.title),\n    el('p', { class: 'quiz-facts' }, `${payload.questions.length} questions · ${payload.learning.targetMinutes}-minute target · ${payload.learning.familiarity === 'new-to-repo' ? 'New to the repo' : 'Already working in the repo'}`),\n    el('p', { class: 'scope-label' }, 'Repository overview'),\n    el('section', { class: 'coverage', 'aria-labelledby': 'coverage-title' },\n      el('h2', { id: 'coverage-title' }, 'The map you’ll build'),\n      el('ol', { class: 'coverage-list' }, payload.learning.coverage.map((concept, index) => el('li', {},\n        el('span', { class: 'coverage-number', 'aria-hidden': 'true' }, String(index + 1).padStart(2, '0')),\n        el('div', {}, el('h3', {}, concept.title), el('p', {}, concept.summary)))))),\n    el('details', { class: 'exclusions' }, el('summary', {}, 'What this quiz leaves for later'),\n      el('ul', {}, payload.learning.exclusions.map((item) => el('li', {}, item)))),\n    el('div', { class: 'ready-footer' },\n      button('Start quiz', () => { session = new QuizSession(quiz); render(); focus(); say('Question 1. Choose an answer.'); }, 'primary')),\n  );"
+      },
+      {
+        "id": "result-ui",
+        "path": "src/main.js",
+        "language": "javascript",
+        "startLine": 255,
+        "endLine": 277,
+        "code": "const outcomeLabel = (value) => value === 'correct' ? 'Correct' : value === 'unanswered' ? 'Not answered' : 'Worth revisiting';\nfunction resultView(question, record) {\n  const result = outcome(question, record.response);\n  const section = el('section', { class: `answer-section ${result}`, 'aria-labelledby': 'answer-heading' },\n    el('div', { class: 'outcome-heading' }, el('h2', { id: 'answer-heading', tabindex: '-1' }, outcomeLabel(result))),\n    el('p', { class: 'answer-explanation' }, question.answer.explanation));\n  const order = question.type === 'ordering' ? question.answer.optionIds : question.options.map((option) => option.id);\n  const answerList = el(question.type === 'ordering' ? 'ol' : 'ul', { class: 'answer-list' });\n  for (const id of order) {\n    const option = question.options.find((item) => item.id === id);\n    const expected = question.answer.optionIds.includes(id);\n    const chosen = record.response?.includes(id);\n    const feedback = question.answer.optionFeedback.find((item) => item.optionId === id);\n    answerList.append(el('li', { class: expected ? 'expected' : '' },\n      el('div', { class: 'answer-option' }, el('strong', {}, option.text),\n        question.type !== 'ordering' && el('span', { class: 'answer-label' }, expected ? (chosen ? 'Expected · Selected' : 'Expected answer') : chosen ? 'Selected · Reconsider' : 'Alternative')),\n      el('p', {}, feedback.explanation)));\n  }\n  section.append(el('h3', {}, question.type === 'ordering' ? 'Reference sequence' : 'Answer details'), answerList);\n  if (question.type === 'ordering') {\n    section.append(el('p', { class: 'response-summary' }, 'Your sequence: ', record.response ? record.response.map((id) => question.options.find((item) => item.id === id).text).join(' → ') : 'Not answered'));\n  }\n  return section;"
+      },
+      {
+        "id": "source-ui",
+        "path": "src/main.js",
+        "language": "javascript",
+        "startLine": 279,
+        "endLine": 289,
+        "code": "function sourceDetail(source, record, reason, prefix) {\n  const details = el('details', { class: 'source-detail', id: `${prefix}-${source.id}`, open: record?.openedSources.has(source.id) },\n    el('summary', {}, el('span', { class: 'source-filename' }, source.path.split('/').at(-1)),\n      el('span', { class: 'source-range' }, `Lines ${source.startLine}–${source.endLine}`)),\n    el('p', { class: 'source-path' }, source.path));\n  if (reason) details.append(el('p', { class: 'source-reason' }, reason));\n  const code = el('code');\n  source.code.split('\\n').forEach((line, index) => code.append(el('span', { class: 'code-line' },\n    el('span', { class: 'line-number', 'aria-hidden': 'true' }, source.startLine + index), el('span', { class: 'line-text' }, line || ' '))));\n  details.append(el('pre', { tabindex: '0', 'aria-label': `${source.path}, lines ${source.startLine} through ${source.endLine}` }, code));\n  if (source.url) details.append(el('a', { class: 'source-link', href: source.url, target: '_blank', rel: 'noopener noreferrer', 'aria-label': `Open ${source.path} at this commit (opens in new tab)` }, 'Open at this commit ↗'));"
+      },
+      {
+        "id": "learning-panels",
+        "path": "src/main.js",
+        "language": "javascript",
+        "startLine": 306,
+        "endLine": 325,
+        "code": "function sourcePanel(question, record) {\n  const ids = [...new Set([...question.answer.evidence.map((item) => item.sourceId), ...question.discussion.flatMap((topic) => topic.sourceIds)])];\n  const panel = el('aside', { class: 'source-panel', 'aria-labelledby': 'source-title' },\n    el('h2', { id: 'source-title' }, 'Source references'));\n  for (const id of ids) {\n    const source = quiz.payload.sources.find((item) => item.id === id);\n    const reason = question.answer.evidence.find((item) => item.sourceId === id)?.reason;\n    panel.append(sourceDetail(source, record, reason, 'question-source'));\n  }\n  return panel;\n}\nfunction discussionView(question) {\n  return el('section', { class: 'discussion-section', 'aria-labelledby': 'discussion-title' },\n    el('h2', { id: 'discussion-title' }, 'Discuss together'),\n    el('ol', {}, question.discussion.map((topic) => el('li', {}, el('p', {}, topic.prompt),\n      el('div', { class: 'discussion-sources' }, topic.sourceIds.map((id) => {\n        const source = quiz.payload.sources.find((item) => item.id === id);\n        return button(`Inspect ${source.path.split('/').at(-1)}`, () => inspectSource(id), 'text');\n      }))))));\n}"
+      },
+      {
+        "id": "question-ui",
+        "path": "src/main.js",
+        "language": "javascript",
+        "startLine": 326,
+        "endLine": 354,
+        "code": "function questionView(main) {\n  const question = session.question;\n  const record = session.record;\n  const concepts = question.conceptIds.map((id) => quiz.payload.learning.coverage.find((item) => item.id === id).title);\n  main.append(el('div', { class: 'question-topline' },\n    el('p', { class: 'eyebrow' }, `Question ${session.viewIndex + 1} of ${session.records.length}`),\n    el('p', { class: 'concept-label' }, concepts[0])));\n  const layout = el('div', { class: `question-layout ${record.phase === 'attempt' ? 'attempt-layout' : ''}` });\n  const work = el('div', { class: 'question-workspace' }, el('h1', { id: 'page-title', tabindex: '-1' }, question.prompt));\n  if (record.phase === 'revealed') work.append(resultView(question, record), discussionView(question));\n  else {\n    work.append(responseControls(question, record),\n      el('div', { class: 'actions question-actions' },\n        button('Reveal answer', () => {\n          session.reveal(); render(); focus('answer-heading'); say(`Answer revealed. ${outcomeLabel(outcome(question, record.response))}.`);\n        }, 'primary', { id: 'submit-response', disabled: !session.canAnswer() }),\n        button('I’m not sure', () => {\n          session.reveal(true); render(); focus('answer-heading'); say('Answer revealed. Not answered.');\n        }, 'text')));\n  }\n  if (record.phase === 'revealed') {\n    const nextAction = session.complete ? button(session.viewIndex === session.activeIndex ? 'View learning recap' : 'Back to learning recap', () => { session.recap(); render(); focus(); }, 'primary')\n      : session.viewIndex !== session.activeIndex ? button('Return to current question', () => { session.review(session.activeIndex); render(); focus(); }, 'primary')\n        : button(session.activeIndex === session.records.length - 1 ? 'View learning recap' : 'Next question', () => { session.next(); render(); focus(); }, 'primary');\n    work.append(el('div', { class: 'next-action' }, nextAction));\n  }\n  layout.append(work);\n  if (record.phase === 'revealed') layout.append(sourcePanel(question, record));\n  main.append(layout);"
+      },
+      {
+        "id": "package-entry",
+        "path": "src/core/package.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 7,
+        "code": "import validateStructure from '../generated/package-validator.js';\nimport { PackageError } from './errors.js';\nimport { parseStrictJson } from './strict-json.js';\nimport { canonicalize, payloadDigest } from './canonical.js';\n\nexport const MAX_PACKAGE_BYTES = 10 * 1024 * 1024;\nconst fail = (code, message, path = '') => { throw new PackageError(code, message, path); };"
+      },
+      {
+        "id": "structure-check",
+        "path": "src/core/package.js",
+        "language": "javascript",
+        "startLine": 23,
+        "endLine": 35,
+        "code": "export async function validatePackage(data) {\n  if (!data || Array.isArray(data) || typeof data !== 'object') fail('invalid-structure', 'A quiz package must be a JSON object.');\n  canonicalize(data); // Reject invalid Unicode and unsafe numbers throughout.\n  if (data.formatVersion !== '1.0') fail('unsupported-version', 'This viewer supports quiz package version 1.0.', '/formatVersion');\n  if (!data.verification || data.verification.status !== 'passed' || data.verification.method !== 'independent-subagent') {\n    fail('incomplete-verification', 'A passed independent-subagent review is required before this quiz can start.', '/verification');\n  }\n  if (!validateStructure(data)) {\n    const error = validateStructure.errors[0];\n    const path = error.instancePath || '/';\n    const code = path.startsWith('/verification') ? 'incomplete-verification' : 'invalid-structure';\n    fail(code, `Package field ${path} ${error.message}.`, path);\n  }"
+      },
+      {
+        "id": "semantic-review",
+        "path": "src/core/package.js",
+        "language": "javascript",
+        "startLine": 58,
+        "endLine": 90,
+        "code": "  for (const question of payload.questions) {\n    const path = `/payload/questions/${question.id}`;\n    const options = question.options.map((option) => option.id);\n    unique(options, `${path}/options`);\n    const optionIds = new Set(options);\n    references(question.conceptIds, concepts, `${path}/conceptIds`);\n    references(question.explorationSourceIds, sources, `${path}/explorationSourceIds`);\n    references(question.answer.optionIds, optionIds, `${path}/answer/optionIds`);\n    references(question.answer.evidence.map((item) => item.sourceId), sources, `${path}/answer/evidence`);\n    const feedback = question.answer.optionFeedback.map((item) => item.optionId);\n    references(feedback, optionIds, `${path}/answer/optionFeedback`);\n    if (feedback.length !== options.length) fail('invalid-answer', 'Every answer option needs feedback.', path);\n    for (const topic of question.discussion) references(topic.sourceIds, sources, `${path}/discussion`);\n    if (question.type === 'ordering') {\n      if (question.answer.optionIds.length !== options.length) fail('invalid-answer', 'An ordering answer must contain every item exactly once.', path);\n      if (question.answer.optionIds.every((id, index) => id === options[index])) fail('invalid-answer', 'Initial item order must differ from the reference answer.', path);\n    } else if (question.answer.optionIds.length === options.length) fail('invalid-answer', 'A choice question must contain an incorrect alternative.', path);\n  }\n  if (verification.verifierId === payload.preparation.generatorId || verification.sourceCommitSha !== payload.repository.commitSha || !verification.independentSolutionsRecorded) {\n    fail('incomplete-verification', 'Review identity, source revision, and independent-solving declaration must match the preparation requirements.', '/verification');\n  }\n  const questionIds = new Set(payload.questions.map((question) => question.id));\n  references(verification.questionReviews.map((review) => review.questionId), questionIds, '/verification/questionReviews');\n  if (verification.questionReviews.length !== questionIds.size) fail('incomplete-verification', 'Every question needs its own passed review.', '/verification/questionReviews');\n  for (const review of verification.questionReviews) {\n    references(review.evidenceSourceIds, sources, `/verification/${review.questionId}`);\n    const question = payload.questions.find((item) => item.id === review.questionId);\n    if (question.answer.evidence.some((item) => !review.evidenceSourceIds.includes(item.sourceId))) {\n      fail('incomplete-verification', 'Question review must cover all answer evidence.', `/verification/${review.questionId}`);\n    }\n  }\n  if (await payloadDigest(payload) !== verification.reviewedPayloadSha256) {\n    fail('stale-verification', 'Quiz content changed after its recorded review. Prepare and verify the package again.', '/verification/reviewedPayloadSha256');"
+      },
+      {
+        "id": "byte-import",
+        "path": "src/core/package.js",
+        "language": "javascript",
+        "startLine": 95,
+        "endLine": 106,
+        "code": "export async function importPackageText(text) {\n  if (new TextEncoder().encode(text).byteLength > MAX_PACKAGE_BYTES) fail('package-too-large', 'Quiz packages must be 10 MiB or smaller.');\n  return validatePackage(parseStrictJson(text));\n}\n\nexport async function importPackageBytes(bytes) {\n  if (bytes.byteLength > MAX_PACKAGE_BYTES) fail('package-too-large', 'Quiz packages must be 10 MiB or smaller.');\n  let text;\n  try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }\n  catch { fail('invalid-json', 'The quiz package must be a valid UTF-8 text file.'); }\n  return importPackageText(text);\n}"
+      },
+      {
+        "id": "json-string",
+        "path": "src/core/strict-json.js",
+        "language": "javascript",
+        "startLine": 14,
+        "endLine": 24,
+        "code": "  const string = () => {\n    const start = position++;\n    while (position < text.length) {\n      if (text[position] === '\\\\') position += 2;\n      else if (text[position++] === '\"') {\n        try { return JSON.parse(text.slice(start, position)); }\n        catch { fail('Invalid string'); }\n      }\n    }\n    fail('Unterminated string');\n  };"
+      },
+      {
+        "id": "schema-compile",
+        "path": "scripts/compile-schema.mjs",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 15,
+        "code": "import { readFile, mkdir, writeFile } from 'node:fs/promises';\nimport Ajv2020 from 'ajv/dist/2020.js';\nimport standalone from 'ajv/dist/standalone/index.js';\n\nconst schema = JSON.parse(await readFile(new URL('../schema/quiz-package-v1.schema.json', import.meta.url), 'utf8'));\nconst ajv = new Ajv2020({ strict: true, allErrors: true, code: { source: true, esm: true } });\nlet code = standalone(ajv, ajv.compile(schema));\n// Ajv's standalone runtime helpers use require even with ESM exports. Convert\n// these fixed compiler-generated imports so Node and Vite share the same output.\ncode = code.replace(/const (\\w+) = require\\(\"(ajv\\/dist\\/runtime\\/[^\".]+)\"\\)\\.default;/g,\n  (_, name, path) => `import ${name}Module from '${path}.js'; const ${name} = ${name}Module.default ?? ${name}Module;`);\nif (code.includes('require(')) throw new Error('Unexpected standalone validator dependency.');\nawait mkdir(new URL('../src/generated/', import.meta.url), { recursive: true });\nawait writeFile(new URL('../src/generated/package-validator.js', import.meta.url), code);\nconsole.log('Compiled the v1 package schema.');"
+      },
+      {
+        "id": "npm-scripts",
+        "path": "package.json",
+        "language": "json",
+        "startLine": 11,
+        "endLine": 27,
+        "code": "  \"scripts\": {\n    \"compile-schema\": \"node scripts/compile-schema.mjs\",\n    \"dev\": \"npm run compile-schema && vite --host 127.0.0.1 --port 4173 --strictPort\",\n    \"build\": \"npm run compile-schema && vite build\",\n    \"build:skill\": \"npm run compile-schema && node scripts/build-skill.mjs\",\n    \"preview\": \"vite preview --host 127.0.0.1 --port 4173 --strictPort\",\n    \"test\": \"npm run compile-schema && node --test tests/unit/*.test.js\",\n    \"test:e2e\": \"npm run build && playwright test\",\n    \"test:skill\": \"npm run build:skill && node --test tests/skill/*.test.js\",\n    \"validate-package\": \"npm run compile-schema && node scripts/validate-package.mjs\"\n  },\n  \"devDependencies\": {\n    \"@axe-core/playwright\": \"^4.13.0\",\n    \"@playwright/test\": \"1.58.2\",\n    \"ajv\": \"^8.20.0\",\n    \"vite\": \"^8.3.4\"\n  }"
+      },
+      {
+        "id": "skill-export",
+        "path": "scripts/build-skill.mjs",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 32,
+        "code": "import { mkdir, readFile, writeFile, copyFile, rm } from 'node:fs/promises';\nimport { fileURLToPath } from 'node:url';\nimport { build } from 'vite';\nimport { bundledDependencyNotices } from './build-licenses.mjs';\n\nconst source = new URL('../skills/code-bearings-quiz/', import.meta.url);\nconst destination = new URL('../.skill-build/code-bearings-quiz/', import.meta.url);\nawait rm(destination, { recursive: true, force: true });\nfor (const directory of ['references/', 'scripts/', 'assets/']) await mkdir(new URL(directory, destination), { recursive: true });\nconst files = ['SKILL.md', 'references/preparation.md', 'references/package-contract.md'];\nfor (const file of files) {\n  const content = await readFile(new URL(file, source), 'utf8');\n  const schemaPath = file === 'SKILL.md' ? '../../schema/quiz-package-v1.schema.json' : '../../../schema/quiz-package-v1.schema.json';\n  if (!content.includes(schemaPath)) throw new Error(`Expected schema link missing from ${file}.`);\n  const portablePath = file === 'SKILL.md' ? 'assets/quiz-package-v1.schema.json' : '../assets/quiz-package-v1.schema.json';\n  await writeFile(new URL(file, destination), content.replaceAll(schemaPath, portablePath));\n}\nawait copyFile(new URL('../schema/quiz-package-v1.schema.json', import.meta.url), new URL('assets/quiz-package-v1.schema.json', destination));\nawait copyFile(new URL('../LICENSE', import.meta.url), new URL('LICENSE', destination));\nawait writeFile(new URL('assets/third-party-notices.txt', destination), await bundledDependencyNotices());\nawait build({\n  configFile: false,\n  publicDir: false,\n  ssr: { noExternal: true },\n  build: {\n    ssr: fileURLToPath(new URL('scripts/quiz-tools.mjs', source)),\n    outDir: fileURLToPath(new URL('scripts/', destination)),\n    target: 'node22', minify: false, emptyOutDir: true,\n    rolldownOptions: { output: { format: 'es', entryFileNames: 'quiz-tools.mjs' } },\n  },\n});\nconsole.log('Portable skill built at .skill-build/code-bearings-quiz/.');"
+      },
+      {
+        "id": "shared-tools",
+        "path": "skills/code-bearings-quiz/scripts/quiz-tools.mjs",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 6,
+        "code": "import { readFile, stat } from 'node:fs/promises';\nimport { execFile } from 'node:child_process';\nimport { promisify } from 'node:util';\nimport { importPackageBytes, MAX_PACKAGE_BYTES } from '../../../src/core/package.js';\nimport { parseStrictJson } from '../../../src/core/strict-json.js';\nimport { payloadDigest } from '../../../src/core/canonical.js';"
+      }
+    ],
+    "questions": [
+      {
+        "id": "q01",
+        "type": "single-choice",
+        "prompt": "How does repository-specific quiz content reach participants in the implemented delivery model?",
+        "options": [
+          {
+            "id": "a",
+            "text": "The browser calls a model provider to generate questions during play."
+          },
+          {
+            "id": "b",
+            "text": "A coding-agent workflow prepares and independently reviews a portable package; a reusable browser viewer imports that file."
+          },
+          {
+            "id": "c",
+            "text": "Each repository gets a custom viewer build containing its private quiz content."
+          },
+          {
+            "id": "d",
+            "text": "The viewer clones the repository and reads its source files whenever an answer is revealed."
+          }
+        ],
+        "conceptIds": [
+          "delivery-boundaries"
+        ],
+        "explorationSourceIds": [
+          "delivery",
+          "local-play",
+          "import-ui"
+        ],
+        "answer": {
+          "optionIds": [
+            "b"
+          ],
+          "explanation": "Preparation and play are separate. A coding agent coordinates preparation and independent review before the session. The reusable viewer reads a user-selected package, which carries the evidence needed for local play without a checkout or provider API.",
+          "evidence": [
+            {
+              "sourceId": "delivery",
+              "reason": "Documents preparation before play and the reusable viewer/package split."
+            },
+            {
+              "sourceId": "local-play",
+              "reason": "Describes filesystem import and loaded play without a checkout, provider API, or network requests."
+            },
+            {
+              "sourceId": "import-ui",
+              "reason": "Shows the user-selected file being read as bytes and accepted as a quiz."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "a",
+              "explanation": "The documented model prepares questions before play; the file-import path reads a package rather than calling a provider."
+            },
+            {
+              "optionId": "b",
+              "explanation": "This connects the agent preparation workflow to the viewer through a portable file."
+            },
+            {
+              "optionId": "c",
+              "explanation": "The viewer imports separate packages. The documented static build is reusable rather than containing each repository's private quiz."
+            },
+            {
+              "optionId": "d",
+              "explanation": "Packages embed source excerpts; the documented loaded-quiz flow needs no checkout. The import handler reads file bytes."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "Given that loaded play needs no checkout, what does embedding source evidence make possible in a shared session, and when might participants still choose to open the original repository?",
+            "sourceIds": [
+              "delivery",
+              "local-play"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q02",
+        "type": "single-choice",
+        "prompt": "You want to change both what counts as a correct answer and how that result appears on screen. Which responsibility split matches the implementation?",
+        "options": [
+          {
+            "id": "a",
+            "text": "Change session outcome logic in the core module, and change result rendering in the main DOM module."
+          },
+          {
+            "id": "b",
+            "text": "Change the package importer for correctness, and the session module for DOM rendering."
+          },
+          {
+            "id": "c",
+            "text": "Change the schema compiler for both answer comparison and result rendering."
+          },
+          {
+            "id": "d",
+            "text": "Change result rendering for correctness, and use package validation to build the answer DOM."
+          }
+        ],
+        "conceptIds": [
+          "delivery-boundaries"
+        ],
+        "explorationSourceIds": [
+          "outcomes",
+          "result-ui",
+          "package-entry",
+          "structure-check",
+          "schema-compile"
+        ],
+        "answer": {
+          "optionIds": [
+            "a"
+          ],
+          "explanation": "Core session logic compares a response with the reference answer and returns an outcome. The DOM layer calls that function and builds the visible result. Package validation and schema compilation decide whether the imported content is acceptable, rather than judging a participant's response or constructing the result DOM.",
+          "evidence": [
+            {
+              "sourceId": "outcomes",
+              "reason": "Contains the response/reference comparison and outcome values."
+            },
+            {
+              "sourceId": "result-ui",
+              "reason": "Calls outcome and renders answer feedback as DOM elements."
+            },
+            {
+              "sourceId": "package-entry",
+              "reason": "Imports the structural validator into the package-validation layer."
+            },
+            {
+              "sourceId": "structure-check",
+              "reason": "Applies version, review-presence, and structural checks to package data."
+            },
+            {
+              "sourceId": "schema-compile",
+              "reason": "Shows schema compilation producing validation code rather than participant-result UI."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "a",
+              "explanation": "The outcome function owns the comparison; resultView uses it to render feedback."
+            },
+            {
+              "optionId": "b",
+              "explanation": "The importer validates the package. The session module tracks state and outcomes, while resultView constructs the result DOM."
+            },
+            {
+              "optionId": "c",
+              "explanation": "The compiler emits a standalone structural validator from the schema; it does not compare participant responses or render results."
+            },
+            {
+              "optionId": "d",
+              "explanation": "resultView consumes the core outcome. validatePackage performs import checks, not DOM construction."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "If the wording or visual treatment of Worth revisiting changed while answer comparison stayed the same, which layer would you change and which core behavior would you preserve?",
+            "sourceIds": [
+              "outcomes",
+              "result-ui"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q03",
+        "type": "ordering",
+        "prompt": "Order these checkpoints for one successful file import, from reading its bytes to showing the ready view. Assume valid UTF-8, valid v1 content, no existing session, and no competing import.",
+        "options": [
+          {
+            "id": "accept",
+            "text": "Accept the validated candidate, clear the session, and render the ready view."
+          },
+          {
+            "id": "validate",
+            "text": "Validate the package version, structure, semantic references, review consistency, and payload digest."
+          },
+          {
+            "id": "decode",
+            "text": "Check the byte-size limit and decode the bytes as UTF-8."
+          },
+          {
+            "id": "parse",
+            "text": "Strictly parse the JSON text, after the text-size check."
+          }
+        ],
+        "conceptIds": [
+          "import-provenance"
+        ],
+        "explorationSourceIds": [
+          "byte-import",
+          "structure-check",
+          "semantic-review",
+          "import-ui",
+          "ready-ui"
+        ],
+        "answer": {
+          "optionIds": [
+            "decode",
+            "parse",
+            "validate",
+            "accept"
+          ],
+          "explanation": "The byte importer checks size and decodes UTF-8, then the text importer checks its size and strictly parses JSON before invoking validation. A successful validator returns the candidate after structural, semantic, and review/digest checks. The current import then accepts it, clears session state, and renders the ready view.",
+          "evidence": [
+            {
+              "sourceId": "byte-import",
+              "reason": "Shows byte-size checking, UTF-8 decoding, text-size checking, and the parse-to-validation call."
+            },
+            {
+              "sourceId": "structure-check",
+              "reason": "Shows the early package checks and structural validation."
+            },
+            {
+              "sourceId": "semantic-review",
+              "reason": "Shows semantic references, recorded-review consistency, and the final digest comparison."
+            },
+            {
+              "sourceId": "import-ui",
+              "reason": "Awaits import before accepting the candidate; acceptance clears session state and renders."
+            },
+            {
+              "sourceId": "ready-ui",
+              "reason": "Shows the ready state and its Start quiz control."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "accept",
+              "explanation": "Acceptance follows the awaited importer. With no existing session, acceptQuiz runs replace directly; the ready view offers Start quiz."
+            },
+            {
+              "optionId": "validate",
+              "explanation": "Validation needs parsed data and finishes the consistency/digest checks before returning it to the UI."
+            },
+            {
+              "optionId": "decode",
+              "explanation": "Bytes are size-checked and decoded before text parsing can begin."
+            },
+            {
+              "optionId": "parse",
+              "explanation": "Strict parsing is evaluated before validatePackage is called; importPackageText checks text size first."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "The loader checks an import sequence number before accepting a candidate. If two imports hypothetically overlapped, which earlier result would that guard prevent from replacing the latest request?",
+            "sourceIds": [
+              "import-ui"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q04",
+        "type": "multiple-select",
+        "prompt": "For an otherwise valid v1 package, which conditions are required by the importer's recorded-review consistency checks? Select all that apply.",
+        "options": [
+          {
+            "id": "a",
+            "text": "The declared generator and verifier identities differ, and the reviewed source commit matches the payload commit."
+          },
+          {
+            "id": "b",
+            "text": "Every question has a passed review whose evidence IDs include all of that question's answer evidence."
+          },
+          {
+            "id": "c",
+            "text": "The recorded payload digest equals the digest calculated from the current payload."
+          },
+          {
+            "id": "d",
+            "text": "The browser contacts the repository remote and confirms that the declared verifier really ran."
+          }
+        ],
+        "conceptIds": [
+          "import-provenance"
+        ],
+        "explorationSourceIds": [
+          "semantic-review",
+          "structure-check",
+          "local-play"
+        ],
+        "answer": {
+          "optionIds": [
+            "a",
+            "b",
+            "c"
+          ],
+          "explanation": "The importer checks the declared review record against the payload: identities must differ, the source commit must agree, every question must have a passed review covering its answer evidence, and the calculated payload digest must match. These are local consistency checks. The preparation workflow supplies actual source correctness and independence; the browser does not authenticate the reviewer or contact the remote to establish them.",
+          "evidence": [
+            {
+              "sourceId": "semantic-review",
+              "reason": "Checks identity/commit consistency, question review coverage, answer-evidence coverage, and payload digest."
+            },
+            {
+              "sourceId": "structure-check",
+              "reason": "Requires a passed independent-subagent declaration and validates the package structure."
+            },
+            {
+              "sourceId": "local-play",
+              "reason": "Distinguishes importer checks from preparation-based source correctness and independence; documents offline loaded play."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "a",
+              "explanation": "The identity and source-commit checks reject an inconsistent review declaration; independentSolutionsRecorded must also be true."
+            },
+            {
+              "optionId": "b",
+              "explanation": "Reviews must cover all questions, and each evidence list must include every answer-evidence source. Structural validation requires passed review entries."
+            },
+            {
+              "optionId": "c",
+              "explanation": "A digest mismatch is rejected as stale verification."
+            },
+            {
+              "optionId": "d",
+              "explanation": "The documented loaded-quiz flow uses no external network requests. Import consistency relies on the recorded review rather than live source or identity verification."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "If someone hypothetically changed an explanation after review, why would a fresh digest comparison detect that change, and why would a matching digest alone still not establish the reviewer's independence?",
+            "sourceIds": [
+              "semantic-review",
+              "local-play"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q05",
+        "type": "multiple-select",
+        "prompt": "Assume a question's reference answer is [a, b]. Which descriptions of the core outcome function are correct? Select all that apply.",
+        "options": [
+          {
+            "id": "a",
+            "text": "For multiple-select, response [b, a] is correct."
+          },
+          {
+            "id": "b",
+            "text": "For ordering, response [b, a] is correct."
+          },
+          {
+            "id": "c",
+            "text": "A null response is classified as unanswered."
+          },
+          {
+            "id": "d",
+            "text": "For multiple-select, response [a] is correct because it contains no wrong item."
+          }
+        ],
+        "conceptIds": [
+          "session-learning"
+        ],
+        "explorationSourceIds": [
+          "outcomes"
+        ],
+        "answer": {
+          "optionIds": [
+            "a",
+            "c"
+          ],
+          "explanation": "A null response returns unanswered immediately. Multiple-select sorts copies of the response and expected IDs, so selection order does not matter, but the lengths and every ID must match. Ordering is compared in its supplied sequence. Missing items are not correct merely because all selected items are expected.",
+          "evidence": [
+            {
+              "sourceId": "outcomes",
+              "reason": "Shows the null case, type-specific sorting, and exact length/element comparison."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "a",
+              "explanation": "Sorting both sides gives the same [a, b] sequence, so this is correct."
+            },
+            {
+              "optionId": "b",
+              "explanation": "Ordering does not sort. [b, a] differs from [a, b] and is classified as revisit."
+            },
+            {
+              "optionId": "c",
+              "explanation": "The null check returns unanswered before any comparison."
+            },
+            {
+              "optionId": "d",
+              "explanation": "The response has one item rather than two, so exact equality fails and the result is revisit."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "How does exact-set comparison for multiple-select differ from exact-sequence comparison for ordering, and what learning conversation might a missing expected item prompt?",
+            "sourceIds": [
+              "outcomes"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q06",
+        "type": "ordering",
+        "prompt": "Order these state changes when answering and advancing from the current, non-final question. Assume its phase starts as attempt and the supplied response is valid; do not use the unsure path.",
+        "options": [
+          {
+            "id": "advance",
+            "text": "Advance the active index and view index to the next question."
+          },
+          {
+            "id": "reveal",
+            "text": "Copy the draft into the recorded response and mark this question revealed."
+          },
+          {
+            "id": "draft",
+            "text": "Store the participant's selection as the question's draft."
+          }
+        ],
+        "conceptIds": [
+          "session-learning"
+        ],
+        "explorationSourceIds": [
+          "session-answer",
+          "session-progress",
+          "outcomes"
+        ],
+        "answer": {
+          "optionIds": [
+            "draft",
+            "reveal",
+            "advance"
+          ],
+          "explanation": "setDraft stores a copied valid selection. reveal checks the attempt phase and answer validity, copies that draft into response, and marks the record revealed. next requires the currently active question to be revealed; for a non-final question it increments activeIndex and moves viewIndex to it.",
+          "evidence": [
+            {
+              "sourceId": "session-answer",
+              "reason": "Shows valid draft storage, reveal guards, response copying, and the revealed phase."
+            },
+            {
+              "sourceId": "session-progress",
+              "reason": "Shows the advancement guard and the non-final index transition."
+            },
+            {
+              "sourceId": "outcomes",
+              "reason": "Defines the copy helper used to keep the recorded response separate from the draft array."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "advance",
+              "explanation": "Advancement comes last: next requires the active, revealed record before moving both indices."
+            },
+            {
+              "optionId": "reveal",
+              "explanation": "Reveal records a response copied from the draft and changes the phase before next can succeed."
+            },
+            {
+              "optionId": "draft",
+              "explanation": "The valid draft is stored first so the ordinary reveal path can record it."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "Why does keeping a copied recorded response separate from the draft matter, and how do the guards restrict later attempts to change or reveal that record again?",
+            "sourceIds": [
+              "outcomes",
+              "session-answer"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q07",
+        "type": "single-choice",
+        "prompt": "Which timing rule does the question view implement for revealing learning material?",
+        "options": [
+          {
+            "id": "a",
+            "text": "Show source filenames during the attempt, then show the code excerpts after reveal."
+          },
+          {
+            "id": "b",
+            "text": "Show the prompt and response controls during the attempt; add answer feedback, discussion, and source references only after reveal."
+          },
+          {
+            "id": "c",
+            "text": "Show answer feedback after reveal, but hold all discussion until the final recap."
+          },
+          {
+            "id": "d",
+            "text": "Open a separate source-exploration stage before participants can submit an answer."
+          }
+        ],
+        "conceptIds": [
+          "session-learning"
+        ],
+        "explorationSourceIds": [
+          "question-ui",
+          "learning-panels",
+          "session-records"
+        ],
+        "answer": {
+          "optionIds": [
+            "b"
+          ],
+          "explanation": "questionView uses the record phase to choose between attempt controls and the revealed result plus discussion. It appends the source panel only for a revealed record. The source panel gathers answer-evidence and discussion references; the retained exploration-source field does not create a separate pre-reveal UI stage.",
+          "evidence": [
+            {
+              "sourceId": "question-ui",
+              "reason": "Shows the attempt/revealed branches, direct reveal controls, and source-panel visibility guard."
+            },
+            {
+              "sourceId": "learning-panels",
+              "reason": "Builds immediate discussion and gathers only answer/discussion source references for the panel."
+            },
+            {
+              "sourceId": "session-records",
+              "reason": "Initializes each question record in attempt phase."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "a",
+              "explanation": "The entire source panel is conditional on the revealed phase, so its source filenames are not shown during the attempt."
+            },
+            {
+              "optionId": "b",
+              "explanation": "This matches both phase branches and the separate source-panel guard."
+            },
+            {
+              "optionId": "c",
+              "explanation": "discussionView is appended beside resultView immediately after reveal, rather than being withheld until recap."
+            },
+            {
+              "optionId": "d",
+              "explanation": "The record starts in attempt, and the question view offers direct reveal or unsure controls. It has no separate pre-reveal exploration stage."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "What would participants be able to infer if filenames appeared before reveal, and where would a hypothetical pre-reveal exploration stage have to change the current phase-based presentation?",
+            "sourceIds": [
+              "question-ui",
+              "session-records"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q08",
+        "type": "single-choice",
+        "prompt": "An imported explanation or code excerpt contains HTML-like text. Which implemented boundary makes that content display as text instead of executing as markup?",
+        "options": [
+          {
+            "id": "a",
+            "text": "The DOM helper appends string children as text nodes, including the imported explanation and source lines."
+          },
+          {
+            "id": "b",
+            "text": "The strict JSON parser removes HTML tags from every parsed string."
+          },
+          {
+            "id": "c",
+            "text": "The session state module rewrites HTML before storing each response."
+          },
+          {
+            "id": "d",
+            "text": "The source renderer inserts excerpt strings through innerHTML and relies on the browser to treat them as safe."
+          }
+        ],
+        "conceptIds": [
+          "safe-presentation"
+        ],
+        "explorationSourceIds": [
+          "dom-text",
+          "result-ui",
+          "source-ui",
+          "json-string",
+          "session-answer"
+        ],
+        "answer": {
+          "optionIds": [
+            "a"
+          ],
+          "explanation": "The shared DOM helper appends non-Node children through document.createTextNode. Imported explanations pass through that helper, and source excerpts are split into lines and appended through it as well. JSON string parsing preserves valid string contents; response state validation operates on option IDs rather than sanitizing display text.",
+          "evidence": [
+            {
+              "sourceId": "dom-text",
+              "reason": "Shows document.createTextNode for string children."
+            },
+            {
+              "sourceId": "result-ui",
+              "reason": "Passes the imported answer explanation to the DOM helper."
+            },
+            {
+              "sourceId": "source-ui",
+              "reason": "Passes each embedded source line to the same helper."
+            },
+            {
+              "sourceId": "json-string",
+              "reason": "Returns parsed JSON string content rather than stripping markup."
+            },
+            {
+              "sourceId": "session-answer",
+              "reason": "Validates/copies option-ID responses rather than sanitizing display strings."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "a",
+              "explanation": "String children become text nodes. The explanation and source-line renderers use that helper."
+            },
+            {
+              "optionId": "b",
+              "explanation": "The string parser uses JSON.parse on the string token and returns it; it does not remove HTML tags."
+            },
+            {
+              "optionId": "c",
+              "explanation": "setDraft validates option IDs and copies the response. It does not process explanation or source text."
+            },
+            {
+              "optionId": "d",
+              "explanation": "The source renderer builds code-line spans through el; it does not insert the excerpt through innerHTML."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "If a future formatter hypothetically started interpreting imported strings as HTML, which existing text-node boundary would it bypass, and which imported content would require renewed review?",
+            "sourceIds": [
+              "dom-text",
+              "result-ui",
+              "source-ui"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q09",
+        "type": "single-choice",
+        "prompt": "If you hypothetically add a required field to the package structure, which path matches how structural validation reaches the browser?",
+        "options": [
+          {
+            "id": "a",
+            "text": "Edit the canonical schema and compile it into the standalone validator imported by the core package module."
+          },
+          {
+            "id": "b",
+            "text": "Hand-edit the generated validator as the sole maintained source of the package contract."
+          },
+          {
+            "id": "c",
+            "text": "Have each browser import fetch and compile the schema from a remote server."
+          },
+          {
+            "id": "d",
+            "text": "Put schema compilation in the session constructor so each question compiles its own validator."
+          }
+        ],
+        "conceptIds": [
+          "build-portability"
+        ],
+        "explorationSourceIds": [
+          "schema-compile",
+          "package-entry",
+          "structure-check",
+          "npm-scripts",
+          "session-records",
+          "semantic-review"
+        ],
+        "answer": {
+          "optionIds": [
+            "a"
+          ],
+          "explanation": "The compiler reads the canonical schema and uses Ajv standalone output to write the generated validator. The core package module imports that validator and invokes it during import. The npm development and build commands compile first. The session constructor initializes quiz state; it does not compile schemas.",
+          "evidence": [
+            {
+              "sourceId": "schema-compile",
+              "reason": "Reads the canonical schema and writes standalone validator code into src/generated."
+            },
+            {
+              "sourceId": "package-entry",
+              "reason": "Imports the generated validator into the core package module."
+            },
+            {
+              "sourceId": "structure-check",
+              "reason": "Invokes that validator during package validation."
+            },
+            {
+              "sourceId": "npm-scripts",
+              "reason": "Runs compile-schema before dev, build, and skill export; Ajv is a development dependency."
+            },
+            {
+              "sourceId": "session-records",
+              "reason": "Shows state initialization in the session constructor."
+            },
+            {
+              "sourceId": "semantic-review",
+              "reason": "Shows cross-reference checks that supplement structural validation."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "a",
+              "explanation": "This follows the schema-to-generated-validator-to-core-import path."
+            },
+            {
+              "optionId": "b",
+              "explanation": "The compile script regenerates that file from the schema, so hand edits would be overwritten by the normal build path."
+            },
+            {
+              "optionId": "c",
+              "explanation": "The importer uses an imported generated validator. The compiler reads a local schema file at build time, not a remote schema during browser imports."
+            },
+            {
+              "optionId": "d",
+              "explanation": "The session constructor sets indices, mode, and per-question records rather than compiling validators."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "If a new field hypothetically referred to source IDs, why might changing structural schema rules still leave work in the semantic reference checks?",
+            "sourceIds": [
+              "schema-compile",
+              "semantic-review"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "q10",
+        "type": "multiple-select",
+        "prompt": "Which build relationships make the exported quiz skill portable outside the viewer checkout? Select all that apply.",
+        "options": [
+          {
+            "id": "a",
+            "text": "The exporter copies the schema into the skill assets directory and rewrites documentation links to that copy."
+          },
+          {
+            "id": "b",
+            "text": "The tools entry imports shared core validation, and the exporter builds that entry as a Node-targeted bundle with dependencies included."
+          },
+          {
+            "id": "c",
+            "text": "The exporter copies the skill instructions and preparation/contract references into the output."
+          },
+          {
+            "id": "d",
+            "text": "The exporter must bundle a repository-specific private quiz fixture so the tools can validate other packages."
+          }
+        ],
+        "conceptIds": [
+          "build-portability"
+        ],
+        "explorationSourceIds": [
+          "skill-export",
+          "shared-tools",
+          "portable-install"
+        ],
+        "answer": {
+          "optionIds": [
+            "a",
+            "b",
+            "c"
+          ],
+          "explanation": "The exporter copies instructions and references, rewrites their schema links, copies the schema into assets, and builds the tools entry as a Node-targeted SSR bundle with dependencies included. That entry imports the shared core validator rather than maintaining a second implementation. The documented installed export therefore needs Node and Git, but no viewer checkout or npm dependencies. The export path does not bundle private quiz fixtures.",
+          "evidence": [
+            {
+              "sourceId": "skill-export",
+              "reason": "Shows the copied resources, rewritten schema links, and self-contained Node tools build."
+            },
+            {
+              "sourceId": "shared-tools",
+              "reason": "Imports the shared package importer, strict parser, and digest implementation."
+            },
+            {
+              "sourceId": "portable-install",
+              "reason": "Documents copying the whole export and its Node/Git requirements without viewer checkout or npm dependencies."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "a",
+              "explanation": "The link replacement and schema copy make the resource paths work within the exported folder."
+            },
+            {
+              "optionId": "b",
+              "explanation": "The source entry imports core validation; the build uses ssr.noExternal with a node22 target to bundle the entry."
+            },
+            {
+              "optionId": "c",
+              "explanation": "The files list explicitly copies the instructions and both canonical references."
+            },
+            {
+              "optionId": "d",
+              "explanation": "The listed export inputs are the skill resources, schema, licenses/notices, and bundled tools. No repository-specific quiz fixture is copied."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "Why does copying only SKILL.md leave the installed workflow incomplete, and how does bundling shared validation help keep command-line and browser acceptance rules aligned?",
+            "sourceIds": [
+              "skill-export",
+              "shared-tools",
+              "portable-install"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "verification": {
+    "status": "passed",
+    "method": "independent-subagent",
+    "verifierId": "/root/public_example_verifier",
+    "verifiedAt": "2026-10-13T21:04:34Z",
+    "sourceCommitSha": "db3133a9d148b06ba56845e7903a90c661c2f338",
+    "reviewedPayloadSha256": "d51ee53f8ce3e11d7179699ae81aebf391ab22dabf275024ba809c37d239dab8",
+    "independentSolutionsRecorded": true,
+    "summary": "Fresh independent blind solutions preceded this exact-payload review. All 10 answers agree; every prompt, alternative, explanation, feedback item, evidence annotation and discussion premise is supported by pinned committed source. All 23 embedded excerpts match exactly. Reviewed for public distribution: no unrelated project data, personal filesystem paths, credentials or email/account data; Code Bearings' own GitHub identity is intentional. No unresolved findings.",
+    "questionReviews": [
+      {
+        "questionId": "q01",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "delivery",
+          "local-play",
+          "import-ui"
+        ],
+        "notes": "Independent answer b confirmed. All alternatives and feedback accurately distinguish preparation from portable-file import and offline loaded play. The embedded-source/shared-session discussion is supported."
+      },
+      {
+        "questionId": "q02",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "outcomes",
+          "result-ui",
+          "package-entry",
+          "structure-check",
+          "schema-compile"
+        ],
+        "notes": "Independent answer a confirmed. Comparison belongs to core outcome logic and visible feedback to main resultView. Importer/compiler alternatives and hypothetical wording/visual changes are accurately explained."
+      },
+      {
+        "questionId": "q03",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "byte-import",
+          "structure-check",
+          "semantic-review",
+          "import-ui",
+          "ready-ui"
+        ],
+        "notes": "Independent sequence decode, parse, validate, accept confirmed. Stated successful/no-session/no-competing-import assumptions remove error/replacement paths. Item feedback and hypothetical overlapping-import sequence guard are supported."
+      },
+      {
+        "questionId": "q04",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "semantic-review",
+          "structure-check",
+          "local-play"
+        ],
+        "notes": "Independent answer set a,b,c confirmed. Schema review verdict passed was separately checked at the pinned commit. Identity, commit, coverage and digest checks are local consistency checks; no live reviewer authentication is claimed. Discussion correctly separates change detection from independence."
+      },
+      {
+        "questionId": "q05",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "outcomes"
+        ],
+        "notes": "Independent answer set a,c confirmed. Null returns unanswered, sorting applies only to multiple-select, and equal length plus element equality rules out missing items. Feedback and exact-set/exact-sequence discussion match the source."
+      },
+      {
+        "questionId": "q06",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "session-answer",
+          "session-progress",
+          "outcomes"
+        ],
+        "notes": "Independent sequence draft, reveal, advance confirmed under the ordinary active non-final path. Copy helper, phase guards, and next index guards support each position and the discussion about draft/response separation."
+      },
+      {
+        "questionId": "q07",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "question-ui",
+          "learning-panels",
+          "session-records"
+        ],
+        "notes": "Independent answer b confirmed. Attempt starts with prompt/controls; revealed phase adds feedback, discussion, and sources. Alternatives are false. Discussion explicitly treats early filenames and a new exploration stage as hypothetical."
+      },
+      {
+        "questionId": "q08",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "dom-text",
+          "result-ui",
+          "source-ui",
+          "json-string",
+          "session-answer"
+        ],
+        "notes": "Independent answer a confirmed. Explanation and source-line strings pass to createTextNode; JSON parsing preserves valid string content, and session draft validation handles option IDs. Alternatives and hypothetical HTML interpretation discussion are supported."
+      },
+      {
+        "questionId": "q09",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "schema-compile",
+          "package-entry",
+          "structure-check",
+          "npm-scripts",
+          "session-records",
+          "semantic-review"
+        ],
+        "notes": "Independent answer a confirmed. Canonical schema compilation emits the imported standalone validator, npm commands compile first, and session construction initializes state. Semantic source-ID references remain distinct checks as the hypothetical discussion states."
+      },
+      {
+        "questionId": "q10",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "skill-export",
+          "shared-tools",
+          "portable-install"
+        ],
+        "notes": "Independent answer set a,b,c confirmed. Copied/rewritten resources, node22 SSR noExternal bundle and shared core imports support portability. No private fixture is copied. Whole-folder installation and shared browser/tool acceptance discussion are grounded."
+      }
+    ]
+  }
+}

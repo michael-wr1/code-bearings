@@ -13,6 +13,7 @@ playwright-report/
 *.preparation.md
 *.independent-solutions.json
 !/tests/fixtures/*.quiz.json
+!/examples/code-bearings.quiz.json
 
 # Exported portable skill; rebuilt from canonical source
 /.skill-build/

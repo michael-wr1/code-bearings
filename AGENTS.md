@@ -62,6 +62,7 @@ Read `README.md` before substantive work. For quiz work, also read `skills/code-
 - Keep personal or private repository names, clone URLs, local paths, branches, commit identifiers, source excerpts, quiz packages, and preparation reports out of committed artifacts. Use the ignored `local/` directory for private material.
 - Keep internal planning documents and development review reports under ignored `local/`. Public documentation should help people use, build, or maintain the application and skill. Do not add contribution invitations or pull-request workflows unless requested.
 - Public tests use explicitly fictional fixtures under `tests/fixtures/`. Their review records are fabricated test inputs, not evidence of actual independent verification. Do not bundle them into the viewer.
+- `examples/code-bearings.quiz.json` is the deliberately public, independently verified quiz about Code Bearings itself. Its committed source excerpts may be published; keep its independent solutions and preparation reports under ignored `local/`. The Git-ignore exception applies only to that example file.
 - Inspect intended commit files and production assets for private content before committing or distributing a build. Do not add ignored local material to Git.
 
 ## Participant-facing UI copy

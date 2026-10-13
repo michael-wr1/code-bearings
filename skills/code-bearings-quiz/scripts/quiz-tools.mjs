@@ -30,7 +30,11 @@ async function verifySources(quiz, checkout) {
   if (!reachable) throw new Error('Recorded commit is not reachable from the named branch in this checkout.');
   for (const source of quiz.payload.sources) {
     const bytes = await git(checkout, ['cat-file', 'blob', `${commitSha}:${source.path}`]);
-    const lines = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes).replace(/\r\n/g, '\n').split('\n');
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes).replace(/\r\n/g, '\n');
+    const lines = text ? text.split('\n') : [];
+    // A terminal newline ends the last line; it does not create another one.
+    // Remove only its split delimiter so an actual final blank line is preserved.
+    if (text.endsWith('\n')) lines.pop();
     const actual = lines.slice(source.startLine - 1, source.endLine).join('\n');
     if (source.endLine > lines.length || actual !== source.code) throw new Error(`Source mismatch: ${source.path}:${source.startLine}-${source.endLine}`);
   }
