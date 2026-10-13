@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile, copyFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
+import { bundledDependencyNotices } from './build-licenses.mjs';
 
 const source = new URL('../skills/code-bearings-quiz/', import.meta.url);
 const destination = new URL('../.skill-build/code-bearings-quiz/', import.meta.url);
@@ -15,8 +16,8 @@ for (const file of files) {
   await writeFile(new URL(file, destination), content.replaceAll(schemaPath, portablePath));
 }
 await copyFile(new URL('../schema/quiz-package-v1.schema.json', import.meta.url), new URL('assets/quiz-package-v1.schema.json', destination));
-const notices = await Promise.all(['ajv/LICENSE', 'fast-deep-equal/LICENSE'].map(path => readFile(new URL(`../node_modules/${path}`, import.meta.url), 'utf8')));
-await writeFile(new URL('assets/third-party-notices.txt', destination), `Bundled runtime helpers: Ajv and fast-deep-equal\n\n${notices.join('\n\n')}`);
+await copyFile(new URL('../LICENSE', import.meta.url), new URL('LICENSE', destination));
+await writeFile(new URL('assets/third-party-notices.txt', destination), await bundledDependencyNotices());
 await build({
   configFile: false,
   publicDir: false,

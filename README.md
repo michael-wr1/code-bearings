@@ -92,7 +92,7 @@ The browser suite tests a production build using pinned Playwright 1.58.2. On a 
 
 ## Project status
 
-The first reusable viewer is implemented, with a versioned package contract and a documented independent verification workflow. The intent is to release it as a free, open-source tool; the license is still to be selected.
+The first reusable viewer is implemented, with a versioned package contract and a documented independent verification workflow. Code Bearings is free and open source under the MIT license.
 
 - [Package contract](skills/code-bearings-quiz/references/package-contract.md) and [JSON Schema](schema/quiz-package-v1.schema.json)
 - [Quiz preparation instructions](skills/code-bearings-quiz/references/preparation.md)
@@ -109,3 +109,9 @@ Answers, progress, and the recap are tracked only for the current session. Saved
 
 
 Quiz content is supplied by the user and is not bundled with the application. Keep private packages and preparation evidence under the ignored `local/` directory or outside this checkout. Public test fixtures are synthetic and do not represent an independently verified repository. Participant timing and learning effectiveness remain to be measured.
+
+## License
+
+Code Bearings, including its quiz-preparation skill, is licensed under the [MIT License](LICENSE).
+
+Production builds include `LICENSE` and `THIRD-PARTY-NOTICES.txt`. The exported skill includes `LICENSE` and `assets/third-party-notices.txt`; keep these files with redistributed copies. Dependencies retain their own licenses. Imported quiz packages and source excerpts are not covered by the Code Bearings license.
