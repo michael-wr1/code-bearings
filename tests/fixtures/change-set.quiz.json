@@ -1,0 +1,392 @@
+{
+  "formatVersion": "1.0",
+  "payload": {
+    "id": "synthetic-change-set",
+    "title": "Example repository: import history",
+    "repository": {
+      "name": "Example repository (synthetic)",
+      "cloneUrl": "https://example.invalid/repository.git",
+      "branch": "feature/import-history",
+      "commitSha": "2222222222222222222222222222222222222222"
+    },
+    "changeSet": {
+      "baseCommitSha": "3333333333333333333333333333333333333333",
+      "selection": {
+        "method": "merge-base",
+        "comparisonBranch": "main",
+        "comparisonCommitSha": "4444444444444444444444444444444444444444"
+      },
+      "focusPaths": [
+        "src/import/",
+        "src/history/"
+      ],
+      "compareUrl": "https://example.invalid/repository/compare/3333333333333333333333333333333333333333...2222222222222222222222222222222222222222"
+    },
+    "preparation": {
+      "generatorId": "synthetic-test-generator",
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    "learning": {
+      "scope": "change-set",
+      "familiarity": "working-in-repo",
+      "targetMinutes": 20,
+      "coverage": [
+        {
+          "id": "responsibilities",
+          "title": "New responsibilities",
+          "summary": "Identify what the change introduced and where it is called."
+        },
+        {
+          "id": "dependencies",
+          "title": "Collaborators",
+          "summary": "Connect the change to unchanged storage and export code."
+        },
+        {
+          "id": "flow",
+          "title": "Import path",
+          "summary": "Trace the import after the change."
+        }
+      ],
+      "exclusions": [
+        "This is invented test data, not a real repository or a measured learning exercise."
+      ]
+    },
+    "sources": [
+      {
+        "id": "store-source",
+        "path": "src/store.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 5,
+        "code": "export class Store {\n  constructor() { this.entries = new Map(); }\n  save(key, value) { this.entries.set(key, value); }\n  get(key) { return this.entries.get(key); }\n}"
+      },
+      {
+        "id": "import-dependencies",
+        "path": "src/import/index.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 2,
+        "code": "import { HistoryLog } from '../history/index.js';\nimport { Store } from '../store.js';"
+      },
+      {
+        "id": "import-flow",
+        "path": "src/import/index.js",
+        "language": "javascript",
+        "startLine": 3,
+        "endLine": 9,
+        "code": "export async function importFile(read, store = new Store(), history = new HistoryLog()) {\n  const text = await read();\n  const value = JSON.parse(text);\n  store.save('current', value);\n  history.record({ size: text.length });\n  return value;\n}"
+      },
+      {
+        "id": "history-source",
+        "path": "src/history/index.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 5,
+        "code": "export class HistoryLog {\n  constructor() { this.entries = []; }\n  record(entry) { this.entries.push(entry); }\n  latest() { return this.entries.at(-1); }\n}"
+      },
+      {
+        "id": "export-source",
+        "path": "src/export/index.js",
+        "language": "javascript",
+        "startLine": 1,
+        "endLine": 4,
+        "code": "import { Store } from '../store.js';\nexport function exportCurrent(store = new Store()) {\n  return JSON.stringify(store.get('current'));\n}"
+      }
+    ],
+    "questions": [
+      {
+        "id": "history-owner",
+        "type": "single-choice",
+        "prompt": "Which component did this change introduce to keep a record of each import?",
+        "conceptIds": [
+          "responsibilities"
+        ],
+        "options": [
+          {
+            "id": "store",
+            "text": "Store"
+          },
+          {
+            "id": "history",
+            "text": "HistoryLog"
+          },
+          {
+            "id": "export",
+            "text": "exportCurrent"
+          }
+        ],
+        "answer": {
+          "optionIds": [
+            "history"
+          ],
+          "explanation": "The range adds HistoryLog, and importFile calls history.record after saving the value.",
+          "evidence": [
+            {
+              "sourceId": "history-source",
+              "reason": "The range adds HistoryLog, and importFile calls history.record after saving the value."
+            },
+            {
+              "sourceId": "import-flow",
+              "reason": "The range adds HistoryLog, and importFile calls history.record after saving the value."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "store",
+              "explanation": "Store does not match the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "history",
+              "explanation": "HistoryLog matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "export",
+              "explanation": "exportCurrent does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "What would a caller lose if history were recorded before the save?",
+            "sourceIds": [
+              "history-source",
+              "import-flow"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "import-collaborators",
+        "type": "multiple-select",
+        "prompt": "Which collaborators can a caller supply to importFile after this change?",
+        "conceptIds": [
+          "dependencies"
+        ],
+        "options": [
+          {
+            "id": "store",
+            "text": "A store"
+          },
+          {
+            "id": "history",
+            "text": "A history log"
+          },
+          {
+            "id": "clock",
+            "text": "A clock"
+          }
+        ],
+        "answer": {
+          "optionIds": [
+            "store",
+            "history"
+          ],
+          "explanation": "importFile accepts store and history parameters with defaults; it has no clock parameter.",
+          "evidence": [
+            {
+              "sourceId": "import-flow",
+              "reason": "importFile accepts store and history parameters with defaults; it has no clock parameter."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "store",
+              "explanation": "A store matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "history",
+              "explanation": "A history log matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "clock",
+              "explanation": "A clock does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "How would injecting a history log help a test of importFile?",
+            "sourceIds": [
+              "import-flow",
+              "import-dependencies"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "import-path",
+        "type": "ordering",
+        "prompt": "Order the successful path through importFile after this change.",
+        "conceptIds": [
+          "flow"
+        ],
+        "options": [
+          {
+            "id": "record",
+            "text": "Record the import"
+          },
+          {
+            "id": "save",
+            "text": "Save the value"
+          },
+          {
+            "id": "read",
+            "text": "Read the text"
+          },
+          {
+            "id": "parse",
+            "text": "Parse the text"
+          }
+        ],
+        "answer": {
+          "optionIds": [
+            "read",
+            "parse",
+            "save",
+            "record"
+          ],
+          "explanation": "importFile reads, parses, saves through Store, and then records the import in HistoryLog.",
+          "evidence": [
+            {
+              "sourceId": "import-flow",
+              "reason": "importFile reads, parses, saves through Store, and then records the import in HistoryLog."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "record",
+              "explanation": "Record the import belongs at step 4."
+            },
+            {
+              "optionId": "save",
+              "explanation": "Save the value belongs at step 3."
+            },
+            {
+              "optionId": "read",
+              "explanation": "Read the text belongs at step 1."
+            },
+            {
+              "optionId": "parse",
+              "explanation": "Parse the text belongs at step 2."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "Hypothetically, what should happen to history if save threw an exception?",
+            "sourceIds": [
+              "import-flow"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "existing-store",
+        "type": "single-choice",
+        "prompt": "Which unchanged module does importFile depend on to save the parsed value?",
+        "conceptIds": [
+          "responsibilities"
+        ],
+        "options": [
+          {
+            "id": "history",
+            "text": "history/index.js"
+          },
+          {
+            "id": "store",
+            "text": "store.js"
+          },
+          {
+            "id": "export",
+            "text": "export/index.js"
+          }
+        ],
+        "answer": {
+          "optionIds": [
+            "store"
+          ],
+          "explanation": "importFile imports Store and calls store.save; store.js is outside the change set.",
+          "evidence": [
+            {
+              "sourceId": "import-dependencies",
+              "reason": "importFile imports Store and calls store.save; store.js is outside the change set."
+            },
+            {
+              "sourceId": "store-source",
+              "reason": "importFile imports Store and calls store.save; store.js is outside the change set."
+            }
+          ],
+          "optionFeedback": [
+            {
+              "optionId": "history",
+              "explanation": "history/index.js does not match the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "store",
+              "explanation": "store.js matches the responsibility described in the cited implementation."
+            },
+            {
+              "optionId": "export",
+              "explanation": "export/index.js does not match the responsibility described in the cited implementation."
+            }
+          ]
+        },
+        "discussion": [
+          {
+            "prompt": "Which other module reads the value Store holds?",
+            "sourceIds": [
+              "export-source",
+              "store-source"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "verification": {
+    "status": "passed",
+    "method": "independent-subagent",
+    "verifierId": "synthetic-test-verifier",
+    "verifiedAt": "2026-01-01T00:00:01Z",
+    "sourceCommitSha": "2222222222222222222222222222222222222222",
+    "reviewedPayloadSha256": "541e4d7ead0e1496e013cd4d0d7fe6df495e687ff460a62e252510fef9d423eb",
+    "independentSolutionsRecorded": true,
+    "summary": "Fabricated attestation for automated testing only. No independent agent review was performed on this fictional fixture.",
+    "questionReviews": [
+      {
+        "questionId": "history-owner",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "history-source",
+          "import-flow"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "import-collaborators",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "import-flow"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "import-path",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "import-flow"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      },
+      {
+        "questionId": "existing-store",
+        "verdict": "passed",
+        "evidenceSourceIds": [
+          "import-dependencies",
+          "store-source"
+        ],
+        "notes": "Synthetic review entry used to exercise validation and UI behavior."
+      }
+    ]
+  }
+}

@@ -4,7 +4,7 @@
 
 Code Bearings helps solo engineers and small teams build and reinforce a mental map of a repository. It addresses the understanding gap that can develop when code is generated faster than engineers can explore it.
 
-Read `README.md` before substantive work. For quiz work, also read `skills/code-bearings-quiz/SKILL.md`, its preparation and package-contract references, and `schema/quiz-package-v1.schema.json`. Distinguish agreed product direction and the implemented v1 contract from open questions. User instructions take precedence.
+Read `README.md` before substantive work. For quiz work, also read `skills/code-bearings-quiz/SKILL.md`, its preparation, change-set, and package-contract references, and `schema/quiz-package-v1.schema.json`. Distinguish agreed product direction and the implemented v1 contract from open questions. User instructions take precedence.
 
 ## Implementation conventions
 
@@ -25,7 +25,7 @@ Read `README.md` before substantive work. For quiz work, also read `skills/code-
 - Accept agent-prepared quiz packages. Generation and verification happen through existing coding-agent workflows, such as Claude Code or Codex, before play begins.
 - Provide one preparation request that coordinates generation and delegates verification to an independent subagent.
 - The first version does not need direct Anthropic or OpenAI API integration.
-- Follow this learning progression: overall repository, then a feature or workflow, then recent AI-generated changes. The first version focuses on the repository overview.
+- Follow this learning progression: overall repository, then a feature or workflow, then recent AI-generated changes. Repository overviews and change-set quizzes (a bounded range of committed changes, such as a feature branch or merged commit) are implemented; feature quizzes without a change set are deferred.
 - Make familiarity selectable, defaulting to `new to the repo`.
 - Make target duration selectable, defaulting to 20–30 minutes including exploration and discussion.
 - Launch with single-choice, multiple-select, and ordering questions, covering responsibilities, dependencies, and execution flow. Matching and fill-in-the-blank are outside the initial scope.
@@ -35,14 +35,14 @@ Read `README.md` before substantive work. For quiz work, also read `skills/code-
 - Track answers, progress, and the learning recap only for the current session. Saved history, persistent results, and cross-session resume are outside the first version.
 - Packages must work without the original repository being present, using embedded source excerpts and references.
 - Record repository clone URL, branch name, and full commit SHA so participants can fetch the relevant source for deeper exploration.
-- Use committed source only. All source evidence and line numbers must refer to the recorded commit.
+- Use committed source only. All source evidence and line numbers must refer to the recorded commit; for a change set, that is the head commit, and claims about what the range changed must be checkable against the diff from its recorded base.
 
 ## Quiz content and verification
 
 - Favor responsibilities, relationships, boundaries, execution paths, and change impact over symbol memorization.
 - An independent verifier subagent must inspect the recorded source and verify questions and answers before a quiz becomes playable. It must work in a separate agent context and establish its own source evidence. Self-review by the generating agent does not satisfy this requirement.
 - If an independent verifier subagent cannot run, report preparation as incomplete rather than marking the quiz verified. Do not fabricate verification findings.
-- Keep all source material hidden before answer reveal so filenames and excerpts do not give away the answer. The v1 package retains its exploration-source field for compatibility, but it does not enable a pre-reveal exploration stage.
+- Keep all source material hidden before answer reveal so filenames and excerpts do not give away the answer. The v1 package keeps an optional exploration-source field so earlier packages stay valid; new packages omit it, and it does not enable a pre-reveal exploration stage.
 - Support explanations with filenames, line numbers, and code excerpts. Include multiple references when the answer depends on relationships across files.
 - Distinguish demonstrated behavior from inferred design intent. Do not invent rationale unsupported by source or supplied documentation.
 - Resolve or exclude ambiguous and unsupported questions before publication into a playable package.

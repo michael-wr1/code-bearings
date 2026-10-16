@@ -164,3 +164,26 @@ test('source comparison rejects a commit newer than the selected branch', async 
   assert.equal(result.code, 1);
   assert.match(result.stderr, /not reachable/);
 });
+test('source comparison checks that links name the recorded commit, path, and range', async () => {
+  const sha = committedPackage.payload.repository.commitSha;
+  const linked = (url) => {
+    const quiz = structuredClone(committedPackage);
+    quiz.payload.sources[1].url = url;
+    return quiz;
+  };
+  const base = `https://example.invalid/owner/repository/blob/${sha}/src/loader.js`;
+  for (const url of [`${base}#L1-L13`, `${base}#L1-13`, `https://example.invalid/projects/repository/browse/${sha}/src/loader.js#lines-1:13`]) {
+    const result = await run('verify-sources', await writePackage('linked.quiz.json', linked(url)), checkout);
+    assert.equal(result.code, 0, `${url}: ${result.stderr}`);
+  }
+  for (const [url, message] of [
+    [`https://example.invalid/owner/repository/blob/main/src/loader.js#L1-L13`, /recorded commit and path/],
+    [`https://example.invalid/owner/repository/blob/${sha}/src/store.js#L1-L13`, /recorded commit and path/],
+    [`${base}#L2-L13`, /range differs/],
+    [base, /line-range fragment/],
+  ]) {
+    const result = await run('verify-sources', await writePackage('mislinked.quiz.json', linked(url)), checkout);
+    assert.equal(result.code, 1, url);
+    assert.match(result.stderr, message);
+  }
+});

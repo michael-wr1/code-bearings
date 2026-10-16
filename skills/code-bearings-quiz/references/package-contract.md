@@ -20,14 +20,28 @@ The schema uses [JSON Schema Draft 2020-12](https://json-schema.org/draft/2020-1
 |---|---|
 | `id`, `title` | Stable package identifier and human-readable title. |
 | `repository` | `name`, `cloneUrl`, `branch`, full lowercase `commitSha`. |
+| `changeSet` | Required for the `change-set` scope and rejected otherwise; see below. |
 | `preparation` | Actual `generatorId` and UTC `createdAt`. |
 | `learning` | Scope, familiarity, target minutes, concept coverage, explicit exclusions. |
 | `sources` | Embedded, individually identified source excerpts. |
 | `questions` | Ordered playable questions. |
 
-Scope is `repository-overview`. Familiarity is `new-to-repo` or `working-in-repo`; these are preparation inputs, not runtime question transformations. `targetMinutes` is a positive safe integer, default 25, with no countdown during play. Coverage items have an `id`, `title`, and `summary`; question `conceptIds` refer to those IDs.
+Scope is `repository-overview` or `change-set`. Familiarity is `new-to-repo` or `working-in-repo`; these are preparation inputs, not runtime question transformations. `targetMinutes` is a positive safe integer, default 25, with no countdown during play. Coverage items have an `id`, `title`, and `summary`; question `conceptIds` refer to those IDs.
 
 `cloneUrl` is displayed/copied as text and never executed. It can represent an HTTPS or SSH Git remote; preparation must not embed credentials. Branch provides context, while the SHA identifies the committed source. Format v1 accepts full 40-character SHA-1 commit IDs; support for SHA-256 Git repositories is deferred to a later format version.
+
+## Change set
+
+A `change-set` package teaches a bounded range of committed changes. `repository.commitSha` is the head commit and `repository.branch` its fetchable branch; all excerpts come from head. `changeSet` contains:
+
+| Field | Meaning |
+|---|---|
+| `baseCommitSha` | Full lowercase SHA of the range's base: an ancestor of head and different from it. |
+| `selection` | `{ "method": "explicit" }`, or `{ "method": "merge-base", "comparisonBranch", "comparisonCommitSha" }` when the base is the unique merge base of head and the comparison branch's recorded SHA. |
+| `focusPaths` | Optional repository-relative files or directories (a trailing `/` is allowed) narrowing the teaching topics. Supporting excerpts may come from elsewhere. |
+| `compareUrl` | Optional HTTPS link to a hosted comparison naming the full base and head SHAs. |
+
+The range is the endpoint tree difference from base to head. The payload digest covers this record, so changing the range invalidates a review. The importer checks structure, SHA syntax, distinct base and head, path rules, and link scheme. Ancestry, merge-base derivation, a nonempty range, and links require `verify-sources`. The [change-set addendum](change-set.md) describes selection, permitted claims, and verification.
 
 ## Source excerpts
 
@@ -38,13 +52,13 @@ Semantic requirements:
 - Source IDs and coverage IDs are unique; paths are relative, contain no empty, `.` or `..` segments, and never begin with `/` or use backslashes.
 - `endLine >= startLine`. The number of LF-separated lines in `code` equals `endLine - startLine + 1`. No extra trailing delimiter is added to an excerpt. A file's terminal newline ends its last line; it does not create another source line. Preserve actual final blank lines instead of trimming all trailing newlines.
 - Excerpts are copied from the Git object at `repository.commitSha`, normalized from CRLF to LF, with no trim, manual edits, omitted interior lines, or fabricated code. The preparer and verifier check them against Git. The offline viewer can check line counts, but cannot prove correspondence to a repository it does not possess.
-- For external links, preparation and verification check revision/path/range agreement. The viewer checks HTTPS before enabling a link. It does not fetch the link to validate evidence.
+- For external links, `verify-sources` checks that the link path names the recorded commit and source path and that its line fragment (`#L1-L5`, `#L1-5`, or `#lines-1:5`) matches the excerpt range. The viewer checks HTTPS before enabling a link. It does not fetch the link to validate evidence.
 
 ## Questions
 
-Every question has `id`, `type`, `prompt`, `conceptIds`, `options`, `explorationSourceIds`, `answer`, and `discussion`. IDs are unique within their appropriate scope; option IDs are unique within a question. Each discussion item has `prompt` and supporting `sourceIds`.
+Every question has `id`, `type`, `prompt`, `conceptIds`, `options`, `answer`, and `discussion`, and may have `explorationSourceIds`. IDs are unique within their appropriate scope; option IDs are unique within a question. Each discussion item has `prompt` and supporting `sourceIds`.
 
-`answer` contains `optionIds`, `explanation`, `evidence` (source ID plus explanation of support), and `optionFeedback` (one explanation for each displayed option/item). Only prompt/options appear before reveal. Source filenames and excerpts, answer feedback, evidence annotations, and discussion prompts appear after reveal. Verification notes belong in preparation reporting. The required v1 `explorationSourceIds` field is retained and validated for compatibility with existing reviewed packages; it does not enable a pre-reveal exploration phase. The viewer presents answer-evidence and discussion references after reveal.
+`answer` contains `optionIds`, `explanation`, `evidence` (source ID plus explanation of support), and `optionFeedback` (one explanation for each displayed option/item). Only prompt/options appear before reveal. Source filenames and excerpts, answer feedback, evidence annotations, and discussion prompts appear after reveal. Verification notes belong in preparation reporting. The optional `explorationSourceIds` field is validated when present so earlier reviewed packages remain valid; new packages omit it, and it does not enable a pre-reveal exploration phase. The viewer presents answer-evidence and discussion references after reveal.
 
 | Type | Reference answer | Correctness |
 |---|---|---|
@@ -57,7 +71,7 @@ An ordering question must identify a specific path and assumptions (for example,
 Additional semantic requirements:
 
 - Every concept, exploration source, evidence source, discussion source, and feedback option reference resolves. No repeated IDs in reference arrays.
-- `optionFeedback` covers every displayed option exactly once. Every question has at least one exploration source, answer-evidence reference, and discussion prompt.
+- `optionFeedback` covers every displayed option exactly once. Every question has at least one answer-evidence reference and discussion prompt.
 - The verifier checks that each incorrect alternative is actually wrong under the prompt's assumptions and that selected evidence supports the explanation and discussion premises.
 - Exploration material may contain code that enables solving the question. It must not include an answer-key annotation or explanation masquerading as a source excerpt.
 - All content strings are plain text. The first version does not accept executable content or HTML formatting in packages.
@@ -89,4 +103,6 @@ The importer rejects nesting beyond 100 levels to bound parsing work; valid v1 p
 
 The exported skill provides `node <skill-directory>/scripts/quiz-tools.mjs validate <package path>`. From a viewer source checkout, `npm run validate-package -- <package path>` remains available after installing npm dependencies. Exit code 0 means structural, semantic, and review-record consistency checks passed; 1 reports an invalid/unreadable package; 2 indicates invalid usage. Validation does not inspect the referenced repository or perform a new independent review.
 
-`quiz-tools.mjs digest <payload.json>` prints the canonical payload SHA-256. Supply the payload object alone, excluding the envelope and verification record. `quiz-tools.mjs verify-sources <package path> <checkout>` first validates the package, then compares all excerpts with committed blobs and checks reachability from a matching branch known to that checkout. Working-tree edits are ignored. A matching local/remote-tracking branch does not establish that the remote is currently accessible.
+`quiz-tools.mjs digest <payload.json>` prints the canonical payload SHA-256. Supply the payload object alone, excluding the envelope and verification record. `quiz-tools.mjs verify-sources <package path> <checkout>` first validates the package, then compares all excerpts and source links with committed blobs and checks reachability from a matching branch known to that checkout. For a change set it also checks the recorded range as described above. Working-tree edits are ignored. A matching local/remote-tracking branch does not establish that the remote is currently accessible.
+
+`quiz-tools.mjs resolve-range <checkout> <head> (--base <commit> | --compare <branch>) [--focus <path>]...` resolves a change-set range and prints its SHAs, `selection` record, and changed files as JSON. It fails for a non-ancestor base, multiple or missing merge bases, an empty range, or focus paths without changes.

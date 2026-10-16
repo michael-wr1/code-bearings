@@ -7,7 +7,7 @@ const source = new URL('../skills/code-bearings-quiz/', import.meta.url);
 const destination = new URL('../.skill-build/code-bearings-quiz/', import.meta.url);
 await rm(destination, { recursive: true, force: true });
 for (const directory of ['references/', 'scripts/', 'assets/']) await mkdir(new URL(directory, destination), { recursive: true });
-const files = ['SKILL.md', 'references/preparation.md', 'references/package-contract.md'];
+const files = ['SKILL.md', 'references/preparation.md', 'references/package-contract.md', 'references/change-set.md'];
 for (const file of files) {
   const content = await readFile(new URL(file, source), 'utf8');
   const schemaPath = file === 'SKILL.md' ? '../../schema/quiz-package-v1.schema.json' : '../../../schema/quiz-package-v1.schema.json';

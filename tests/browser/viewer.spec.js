@@ -197,3 +197,57 @@ test('keyboard navigation, ordering and mobile reflow stay usable', async ({ pag
   await page.keyboard.press('Escape');
   await expect(page.getByRole('heading', { name: 'Correct', exact: true })).toBeVisible();
 });
+
+test('a change-set quiz shows its range and distinguishes files that share a name', async ({ page }) => {
+  const changePath = new URL('../fixtures/change-set.quiz.json', import.meta.url).pathname;
+  const change = JSON.parse(await readFile(changePath, 'utf8'));
+  const { changeSet, repository, questions } = change.payload;
+  await page.locator('#package-file').setInputFiles(changePath);
+  await expect(page.getByText('Change set', { exact: true })).toBeVisible();
+  await expect(page.getByText('Repository overview', { exact: true })).toHaveCount(0);
+  const reference = page.locator('.provenance');
+  await expect(reference.locator('dt')).toHaveText(['Clone URL', 'Branch', 'Base commit', 'Head commit']);
+  await expect(reference.getByText(changeSet.baseCommitSha, { exact: true })).toBeVisible();
+  await expect(reference.getByText(repository.commitSha, { exact: true })).toBeVisible();
+  await expect(reference.getByText('Merge base with main', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Compare base and head (opens in new tab)' })).toHaveAttribute('href', changeSet.compareUrl);
+  await page.screenshot({ path: 'test-results/screenshots/change-set-ready.png', fullPage: true });
+  await accessibility(page);
+  await page.getByRole('button', { name: 'Start quiz', exact: true }).click();
+  await expect(page.locator('.source-panel')).toHaveCount(0);
+  await expect(page.getByText('index.js', { exact: false })).toHaveCount(0);
+
+  await choose(page, questions[0]);
+  await page.getByRole('button', { name: 'Reveal answer', exact: true }).click();
+  await expect(page.locator('.source-filename')).toHaveText(['history/index.js', 'import/index.js']);
+  await accessibility(page);
+  await page.getByRole('button', { name: 'Next question', exact: true }).click();
+
+  await choose(page, questions[1]);
+  await page.getByRole('button', { name: 'Reveal answer', exact: true }).click();
+  const flow = page.getByRole('button', { name: 'Inspect import/index.js, lines 3–9', exact: true });
+  await expect(page.getByRole('button', { name: 'Inspect import/index.js, lines 1–2', exact: true })).toBeVisible();
+  await flow.click();
+  await expect(page.locator('#question-source-import-flow summary')).toBeFocused();
+  await expect(page.locator('#question-source-import-flow .line-number').first()).toHaveText('3');
+  await page.screenshot({ path: 'test-results/screenshots/change-set-reveal.png', fullPage: true });
+  await accessibility(page);
+  await page.getByRole('button', { name: 'Next question', exact: true }).click();
+
+  for (let index = 2; index < questions.length; index++) {
+    await choose(page, questions[index]);
+    await page.getByRole('button', { name: 'Reveal answer', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Correct', exact: true })).toBeVisible();
+    if (index === 3) await expect(page.locator('.discussion-sources .button')).toHaveText(['Inspect export/index.js', 'Inspect store.js']);
+    await page.getByRole('button', { name: index === questions.length - 1 ? 'View learning recap' : 'Next question', exact: true }).click();
+  }
+  await expect(page.getByRole('heading', { name: 'Learning recap', exact: true })).toBeVisible();
+  await expect(page.getByText('Your answers matched the reference answers.', { exact: true })).toBeVisible();
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.getByText('Repository reference', { exact: true }).click();
+  await page.screenshot({ path: 'test-results/screenshots/change-set-recap-mobile.png', fullPage: true });
+  await accessibility(page);
+});

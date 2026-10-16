@@ -10,6 +10,7 @@ const notice = document.querySelector('#import-notice');
 const announcements = document.querySelector('#announcements');
 const confirmation = document.querySelector('#confirmation');
 let quiz = null;
+let sourceLabels = new Map();
 let session = null;
 let importing = false;
 let importSequence = 0;
@@ -71,8 +72,24 @@ function showError(error) {
   );
   notice.focus();
 }
+// Shortest path suffix that tells each file apart from the quiz's other files.
+// Files supplying several excerpts are also distinguished by line range.
+function labelSources(sources) {
+  const paths = [...new Set(sources.map((source) => source.path))];
+  const suffix = (path, length) => path.split('/').slice(-length).join('/');
+  const names = new Map(paths.map((path) => {
+    let length = 1;
+    while (length < path.split('/').length && paths.some((other) => other !== path && suffix(other, length) === suffix(path, length))) length++;
+    return [path, suffix(path, length)];
+  }));
+  return new Map(sources.map((source) => {
+    const shared = sources.some((other) => other !== source && other.path === source.path);
+    const name = names.get(source.path);
+    return [source.id, { name, inspect: shared ? `${name}, lines ${source.startLine}–${source.endLine}` : name }];
+  }));
+}
 function acceptQuiz(candidate) {
-  const replace = () => { quiz = candidate; session = null; clearError(); render(); focus(); say('Quiz package ready.'); };
+  const replace = () => { quiz = candidate; sourceLabels = labelSources(candidate.payload.sources); session = null; clearError(); render(); focus(); say('Quiz package ready.'); };
   if (session) confirm('Replace this session?', 'Its answers and progress will be cleared.', 'Replace session', replace);
   else replace();
 }
@@ -109,10 +126,11 @@ async function copy(text, label) {
   try { await navigator.clipboard.writeText(text); say(`Copied ${label}.`); }
   catch { say(`Copy is unavailable. Select the ${label} text to copy it.`); }
 }
-function metadata(label, value, copyLabel) {
+function metadata(label, value, copyLabel, note) {
   return el('div', { class: 'reference-row' },
     el('dt', {}, label),
-    el('dd', {}, el('code', {}, value), copyLabel && button('Copy', () => copy(value, copyLabel), 'text', { 'aria-label': `Copy ${copyLabel}` })),
+    el('dd', {}, note && el('p', { class: 'reference-note' }, note), el('code', {}, value),
+      copyLabel && button('Copy', () => copy(value, copyLabel), 'text', { 'aria-label': `Copy ${copyLabel}` })),
   );
 }
 function endSession() {
@@ -128,14 +146,20 @@ function restart() {
 
 function sidebar() {
   const side = el('aside', { class: 'sidebar', 'aria-label': 'Quiz context' });
-  const repository = quiz.payload.repository;
+  const { repository, changeSet } = quiz.payload;
   side.append(el('h2', { class: 'repo-name' }, repository.name));
+  const commits = changeSet ? [
+    metadata('Base commit', changeSet.baseCommitSha, 'base commit SHA',
+      changeSet.selection.method === 'merge-base' && `Merge base with ${changeSet.selection.comparisonBranch}`),
+    metadata('Head commit', repository.commitSha, 'head commit SHA', 'Source excerpts come from this commit'),
+  ] : [metadata('Commit', repository.commitSha, 'commit SHA')];
   const provenance = el('details', { class: 'provenance', open: !session },
     el('summary', {}, 'Repository reference'),
     el('dl', {},
       metadata('Clone URL', repository.cloneUrl, 'clone URL'),
       metadata('Branch', repository.branch, 'branch name'),
-      metadata('Commit', repository.commitSha, 'commit SHA')),
+      commits),
+    changeSet?.compareUrl && el('a', { class: 'source-link', href: changeSet.compareUrl, target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Compare base and head (opens in new tab)' }, 'Compare base and head ↗'),
   );
   side.append(provenance);
   if (session) {
@@ -183,7 +207,7 @@ function readyView(main) {
   const payload = quiz.payload;
   main.append(el('h1', { id: 'page-title', tabindex: '-1' }, payload.title),
     el('p', { class: 'quiz-facts' }, `${payload.questions.length} questions · ${payload.learning.targetMinutes}-minute target · ${payload.learning.familiarity === 'new-to-repo' ? 'New to the repo' : 'Already working in the repo'}`),
-    el('p', { class: 'scope-label' }, 'Repository overview'),
+    el('p', { class: 'scope-label' }, payload.learning.scope === 'change-set' ? 'Change set' : 'Repository overview'),
     el('section', { class: 'coverage', 'aria-labelledby': 'coverage-title' },
       el('h2', { id: 'coverage-title' }, 'The map you’ll build'),
       el('ol', { class: 'coverage-list' }, payload.learning.coverage.map((concept, index) => el('li', {},
@@ -278,7 +302,7 @@ function resultView(question, record) {
 }
 function sourceDetail(source, record, reason, prefix) {
   const details = el('details', { class: 'source-detail', id: `${prefix}-${source.id}`, open: record?.openedSources.has(source.id) },
-    el('summary', {}, el('span', { class: 'source-filename' }, source.path.split('/').at(-1)),
+    el('summary', {}, el('span', { class: 'source-filename' }, sourceLabels.get(source.id).name),
       el('span', { class: 'source-range' }, `Lines ${source.startLine}–${source.endLine}`)),
     el('p', { class: 'source-path' }, source.path));
   if (reason) details.append(el('p', { class: 'source-reason' }, reason));
@@ -318,10 +342,8 @@ function discussionView(question) {
   return el('section', { class: 'discussion-section', 'aria-labelledby': 'discussion-title' },
     el('h2', { id: 'discussion-title' }, 'Discuss together'),
     el('ol', {}, question.discussion.map((topic) => el('li', {}, el('p', {}, topic.prompt),
-      el('div', { class: 'discussion-sources' }, topic.sourceIds.map((id) => {
-        const source = quiz.payload.sources.find((item) => item.id === id);
-        return button(`Inspect ${source.path.split('/').at(-1)}`, () => inspectSource(id), 'text');
-      }))))));
+      el('div', { class: 'discussion-sources' }, topic.sourceIds.map((id) =>
+        button(`Inspect ${sourceLabels.get(id).inspect}`, () => inspectSource(id), 'text')))))));
 }
 function questionView(main) {
   const question = session.question;

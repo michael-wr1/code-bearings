@@ -71,3 +71,45 @@ test('canonicalization preserves Unicode, array order, and primitive serializati
   assert.throws(() => canonicalize({ number: Infinity }));
   assert.throws(() => canonicalize({ number: Number.MAX_SAFE_INTEGER + 1 }));
 });
+
+const changeSetRaw = await readFile(new URL('../fixtures/change-set.quiz.json', import.meta.url), 'utf8');
+const changeSet = JSON.parse(changeSetRaw);
+// Re-signs the synthetic payload so these cases reach checks after the digest.
+const changeSetRejected = (change, code, path) => async () => {
+  const invalid = structuredClone(changeSet);
+  change(invalid);
+  invalid.verification.reviewedPayloadSha256 = await payloadDigest(invalid.payload);
+  await assert.rejects(importPackageText(JSON.stringify(invalid)), (error) => error.code === code && (!path || error.path === path));
+};
+
+test('semantic error paths match schema error paths', async () => {
+  const invalid = structuredClone(fixture);
+  invalid.payload.questions[2].discussion[0].sourceIds = ['unknown'];
+  await assert.rejects(importPackageText(JSON.stringify(invalid)), (error) => error.path === '/payload/questions/2/discussion/0/sourceIds');
+  const range = structuredClone(fixture);
+  range.payload.sources[1].endLine++;
+  await assert.rejects(importPackageText(JSON.stringify(range)), (error) => error.path === '/payload/sources/1');
+});
+test('a change-set package imports without exploration sources', async () => {
+  const result = await importPackageText(changeSetRaw);
+  assert.equal(result.payload.learning.scope, 'change-set');
+  assert.ok(result.payload.questions.every((question) => !('explorationSourceIds' in question)));
+});
+test('the public overview example still imports with its recorded review', async () => {
+  const example = await readFile(new URL('../../examples/code-bearings.quiz.json', import.meta.url), 'utf8');
+  assert.equal((await importPackageText(example)).payload.learning.scope, 'repository-overview');
+});
+test('change-set metadata edits invalidate a review', async () => {
+  const invalid = structuredClone(changeSet);
+  invalid.payload.changeSet.baseCommitSha = '5'.repeat(40);
+  await assert.rejects(importPackageText(JSON.stringify(invalid)), (error) => error.code === 'stale-verification');
+});
+test('a change-set scope requires change-set metadata', changeSetRejected((p) => delete p.payload.changeSet, 'invalid-structure'));
+test('an overview rejects change-set metadata', changeSetRejected((p) => p.payload.learning.scope = 'repository-overview', 'invalid-structure'));
+test('base and head must differ', changeSetRejected((p) => p.payload.changeSet.baseCommitSha = p.payload.repository.commitSha, 'invalid-structure', '/payload/changeSet/baseCommitSha'));
+test('base must be a full commit SHA', changeSetRejected((p) => p.payload.changeSet.baseCommitSha = '3333333', 'invalid-structure'));
+test('merge-base selection records its comparison', changeSetRejected((p) => delete p.payload.changeSet.selection.comparisonCommitSha, 'invalid-structure'));
+test('explicit selection has no comparison fields', changeSetRejected((p) => p.payload.changeSet.selection.method = 'explicit', 'invalid-structure'));
+test('focus paths stay inside the repository', changeSetRejected((p) => p.payload.changeSet.focusPaths = ['src/../..'], 'invalid-structure', '/payload/changeSet/focusPaths/0'));
+test('focus paths do not repeat', changeSetRejected((p) => p.payload.changeSet.focusPaths = ['src/', 'src/'], 'invalid-reference'));
+test('comparison links use HTTPS without credentials', changeSetRejected((p) => p.payload.changeSet.compareUrl = 'https://user:secret@example.invalid/compare', 'invalid-structure', '/payload/changeSet/compareUrl'));

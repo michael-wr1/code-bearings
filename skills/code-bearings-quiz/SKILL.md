@@ -1,6 +1,6 @@
 ---
 name: code-bearings-quiz
-description: Prepare a Code Bearings repository quiz from committed source, gathering missing inputs and coordinating independent subagent verification. Use when someone wants to generate a quiz package for learning a codebase.
+description: Prepare a Code Bearings quiz from committed source, either a repository overview or a change set such as a feature branch or merged commit, gathering missing inputs and coordinating independent subagent verification. Use when someone wants to generate a quiz package for learning a codebase or how a set of changes works.
 ---
 
 # Prepare a repository quiz
@@ -15,15 +15,16 @@ If a required input needs clarification, stop after asking. Do not map source, d
 
 | Input | Resolution |
 |---|---|
+| Scope | Default to a repository overview. A request about a branch's changes, a commit range, a merge commit, or a squashed commit is a change-set quiz; follow the [change-set reference](references/change-set.md) to resolve its range. Ask when the intended changes are unclear. |
 | Repository | Use the clearly identified target checkout. A request for “this repository” means the user's working repository, not the installed skill's directory. Ask when ambiguous. For a URL, find an existing checkout or obtain an isolated clone using the environment's normal permissions. |
 | Branch and commit | Default to the target checkout's current named branch and committed tip. Resolve the full SHA once and use it throughout. An explicit commit must be reachable from the selected branch. Ask for a branch for detached HEAD; a repository without commits cannot produce a quiz. |
-| Familiarity | Default to `new-to-repo`. Accept `working-in-repo` for engineers already contributing; translate equivalent plain-language requests. |
+| Familiarity | Default to `new-to-repo` for an overview and `working-in-repo` for a change set. Accept `working-in-repo` for engineers already contributing; translate equivalent plain-language requests. |
 | Duration | Default to 25 minutes including evidence and discussion. Accept a positive whole number of minutes. Ask about ambiguous ranges or invalid values. |
 | Destination | Use an explicitly supplied file or directory, or an established private destination from the conversation. Otherwise ask where to save and wait for the answer. A repository instruction recommending `local/` is not an established destination for this request. For a directory, choose `<repo>-<short-sha>.quiz.json` without overwriting an existing file. Keep packages and review evidence outside committed/public artifacts. |
 
 Read target-repository instructions. Identify a credential-free clone URL; ask if no unambiguous remote exists. Check that the branch/revision can be fetched from that remote using available evidence. If it is local-only or cannot be checked, explain the limitation and resolve the revision with the facilitator rather than publishing source changes yourself. Read Git objects, excluding working-tree edits. Do not switch, clean, commit, or push the target checkout to prepare a quiz.
 
-State the resolved repository, branch/full SHA, familiarity, duration, and destination briefly before starting. This is a setup summary, not a new permission gate. If the user has explicitly requested an approval step, honor it.
+State the resolved scope, repository, branch/full SHA, change-set range and focus (if any), familiarity, duration, and destination briefly before starting. This is a setup summary, not a new permission gate. If the user has explicitly requested an approval step, honor it.
 
 ## Prepare and verify
 
@@ -31,7 +32,7 @@ Read the [preparation protocol](references/preparation.md), [package contract](r
 
 Check early that Git, Node.js 22.12 or newer, and the bundled tools are available, and that a fresh independent subagent can run and inspect the committed source. If a requirement is unavailable, report incomplete preparation; never invent an agent identity, successful review, or self-review fallback. This request authorizes the protocol's verification delegation, subject to the environment's actual tool and permission availability.
 
-Generate a repository overview using single-choice, multiple-select, and ordering questions about responsibilities, dependencies, and execution flow. For 25 minutes, 8–12 questions is a starting heuristic; adjust for source complexity. Avoid questions answerable merely by matching the prompt's wording to a class name. Support every alternative and discussion premise with source evidence.
+Generate the quiz using single-choice, multiple-select, and ordering questions about responsibilities, dependencies, and execution flow. For a change set, also follow the [change-set reference](references/change-set.md), which limits claims to what the range changed and adds checks to verification. For 25 minutes, 8–12 questions is a starting heuristic; adjust for source complexity. Avoid questions answerable merely by matching the prompt's wording to a class name. Support every alternative and discussion premise with source evidence.
 
 Delegate blind solving to a fresh context without answers or generation history. Use a separate invocation for each verification phase: the blind-solving instruction must not include the candidate payload, its path, or later instructions to open it. Wait for the subagent to return its written solutions, then resume/message that same verifier with the candidate for exact-payload review. If it cannot be resumed or contacted, report incomplete preparation; do not combine both phases in one instruction as a workaround. A replacement verifier must complete a new blind-only invocation and return its solutions before receiving the candidate. Follow the protocol's revision limits and fresh-solving requirements when questions change.
 
@@ -46,6 +47,8 @@ node <skill-directory>/scripts/quiz-tools.mjs digest <payload.json>
 node <skill-directory>/scripts/quiz-tools.mjs validate <package.quiz.json>
 node <skill-directory>/scripts/quiz-tools.mjs verify-sources <package.quiz.json> <repository-checkout>
 ```
+
+For a change set, resolve the range first with `quiz-tools.mjs resolve-range`, as described in the change-set reference; `verify-sources` then also checks the recorded range.
 
 The verifier independently computes/checks the payload digest before returning its record. Final validation and committed-source comparison must pass before reporting a playable package. Tools do not authenticate agent identity or replace its source-based reasoning. Missing tools or failed checks mean incomplete preparation.
 

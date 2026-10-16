@@ -1,6 +1,6 @@
 # Prepare a Code Bearings quiz
 
-**Status: Provider-neutral preparation protocol.** The [quiz skill](../SKILL.md) gathers inputs and uses this workflow to coordinate generation and independent verification. It can also be followed directly by a coding agent.
+**Status: Provider-neutral preparation protocol.** The [quiz skill](../SKILL.md) gathers inputs and uses this workflow to coordinate generation and independent verification. It can also be followed directly by a coding agent. For a change-set quiz, also follow the [change-set addendum](change-set.md); it adds range selection, limits on claims, and verification checks without replacing any step here.
 
 ## Example request
 
@@ -34,7 +34,7 @@ Assess the major components, entry points, ownership boundaries, and dependencie
 
 Use only single-choice, multiple-select, and ordering. Favor responsibilities, dependencies, and execution paths; avoid spelling quizzes and speculative design rationale.
 
-Produce a payload according to [the contract](package-contract.md) and [schema](../../../schema/quiz-package-v1.schema.json), with exact committed excerpts and original line ranges. Include explanations for all alternatives/items and source-backed discussion prompts. Provide all source references required by the v1 contract, including the retained `explorationSourceIds` field. The viewer hides source filenames and excerpts until answer reveal; there is no intermediate exploration/revision phase.
+Produce a payload according to [the contract](package-contract.md) and [schema](../../../schema/quiz-package-v1.schema.json), with exact committed excerpts and original line ranges. Include explanations for all alternatives/items and source-backed discussion prompts. Provide all source references required by the v1 contract. Omit the optional `explorationSourceIds` field, which remains only so earlier packages stay valid. The viewer hides source filenames and excerpts until answer reveal; there is no intermediate exploration/revision phase.
 
 An overview should introduce the repository map before connecting components through a representative path. A useful starting range is 8–12 questions for a 25-minute session, adjusted for excerpt complexity. It is a preparation heuristic, not a promise of measured duration or a required package count.
 
