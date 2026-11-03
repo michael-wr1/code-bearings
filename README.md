@@ -94,7 +94,9 @@ Once installed, the exported skill’s tools need **Node.js 22.12 or newer and G
 
 ## Tested environments and project status
 
-Code Bearings is an **early preview** maintained as a personal project. External pull requests are not accepted.
+Code Bearings is an **unsupported early preview** shared as a personal project. Use it at your own risk. Support, responses, fixes, and continued maintenance are not promised. Pull requests are not reviewed or accepted.
+
+Bug reports are welcome through [GitHub Issues](https://github.com/michael-wr1/code-bearings/issues). Include reproduction steps, your browser and runtime versions, and a minimal fictional example if needed. Do not upload private quiz packages, source excerpts, credentials, or preparation reports.
 
 - **Viewer:** Chromium through Playwright 1.58.2 on macOS and Ubuntu 24.04, including offline playback and keyboard ordering. A guided maintainer trial also exercised Firefox on macOS; its version was not recorded.
 - **Preparation:** Codex CLI 0.162.1 and 0.166.0, and Claude Code 2.1.293 on macOS, using installed skills and actual independent verifier subagents.
