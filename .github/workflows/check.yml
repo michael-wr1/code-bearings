@@ -42,5 +42,7 @@ jobs:
         with:
           name: downloads-${{ github.sha }}
           path: .release/*
+          # Packaging and archive checks allowlist this directory's contents.
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
