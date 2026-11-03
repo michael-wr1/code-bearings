@@ -19,7 +19,7 @@ Use it on your own or share a browser window in a team call. Answer a question, 
 
 If you have a prepared viewer or skill archive, follow the [download instructions](docs/downloads.md) to use it without building from source. CI produces candidate archives; a tagged public release has not yet been published.
 
-Requires **Node.js 22.12 or newer**, npm, and Git. These commands use POSIX shell syntax; the setup has been tested on macOS.
+Requires **Node.js 22.12 or newer**, npm, and Git. These commands use POSIX shell syntax; setup has been exercised on macOS and in Ubuntu CI.
 
 ```bash
 git clone https://github.com/michael-wr1/code-bearings.git
@@ -96,11 +96,11 @@ Once installed, the exported skill’s tools need **Node.js 22.12 or newer and G
 
 Code Bearings is an **early preview** maintained as a personal project. External pull requests are not accepted.
 
-- **Viewer:** Chromium through Playwright 1.58.2 on macOS, including offline playback and keyboard ordering.
-- **Preparation:** Codex CLI 0.162.1 and Claude Code 2.1.293 on macOS, using installed skills and actual independent verifier subagents.
-- **Runtime used for these checks:** Node.js 23.11.0 on macOS 27.0.1.
+- **Viewer:** Chromium through Playwright 1.58.2 on macOS and Ubuntu 24.04, including offline playback and keyboard ordering. A guided maintainer trial also exercised Firefox on macOS; its version was not recorded.
+- **Preparation:** Codex CLI 0.162.1 and 0.166.0, and Claude Code 2.1.293 on macOS, using installed skills and actual independent verifier subagents.
+- **Runtimes used for these checks:** Node.js 23.11.0 on macOS 27.0.1; Node.js 22.12.0 and 24.22.1 on Ubuntu 24.04 CI. Extracted viewer and skill archives are checked in CI as well.
 
-Other operating systems, browsers, and agent versions have not yet been verified. Automated accessibility checks have passed; real screen-reader use and unassisted participant trials remain untested. Session duration and learning effectiveness have not been measured. For automated Claude Code print-mode runs, leave session persistence enabled so the verifier can continue from blind solving to full review in a separate invocation.
+Other environments have not yet been verified. Automated accessibility checks have passed; real screen-reader use and unassisted participant trials remain untested. The maintainer trial is not independent usability evidence. Session duration and learning effectiveness have not been measured. For automated Claude Code print-mode runs, leave session persistence enabled so the verifier can continue from blind solving to full review in a separate invocation.
 
 ## Build and check
 
