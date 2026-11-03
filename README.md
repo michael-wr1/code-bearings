@@ -17,6 +17,8 @@ Use it on your own or share a browser window in a team call. Answer a question, 
 
 ## Try the example
 
+If you have a prepared viewer or skill archive, follow the [download instructions](docs/downloads.md) to use it without building from source. CI produces candidate archives; a tagged public release has not yet been published.
+
 Requires **Node.js 22.12 or newer**, npm, and Git. These commands use POSIX shell syntax; the setup has been tested on macOS.
 
 ```bash

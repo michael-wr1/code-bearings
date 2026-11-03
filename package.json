@@ -13,6 +13,8 @@
     "dev": "npm run compile-schema && vite --host 127.0.0.1 --port 4173 --strictPort",
     "build": "npm run compile-schema && vite build",
     "build:skill": "npm run compile-schema && node scripts/build-skill.mjs",
+    "build:release": "npm run build && npm run build:skill && python3 scripts/package-release.py",
+    "test:release": "node scripts/test-release.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "test": "npm run compile-schema && node --test tests/unit/*.test.js",
     "test:e2e": "npm run build && playwright test",

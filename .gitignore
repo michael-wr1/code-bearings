@@ -17,3 +17,4 @@ playwright-report/
 
 # Exported portable skill; rebuilt from canonical source
 /.skill-build/
+/.release/
