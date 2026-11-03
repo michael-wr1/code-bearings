@@ -56,6 +56,8 @@ Record the actual verifier identity and preserve the solutions with the preparat
 
 After independent solutions are recorded and returned, resume or message that same verifier with the complete candidate payload and the package contract. Require the verifier to compare its solutions, inspect each alternative, check exact source excerpts/ranges, explanations, and discussion premises, and report any disagreement or unsupported claim.
 
+Also check that participant wording explains the code without unnecessary preparation or revision jargon. Report confusing terms for revision before finalizing the payload.
+
 If the host cannot resume or contact the verifier, report incomplete preparation and the actual limitation. A replacement verifier must finish a fresh blind-only invocation and return its written solutions before receiving the candidate. Do not merge blind solving and review into one request to work around missing transcripts. In CLI/print-mode tests, retain the session state required by the host's subagent resume mechanism.
 
 If content is revised, the verifier must review the revised exact payload. Questions with material prompt changes need a fresh blind-solve pass in a new verifier context; do not reuse a prior answer as independent evidence for a different question. Resolve every finding through revision and review or exclude the question and record why. After at most two revision rounds, return incomplete preparation if unresolved findings remain; a user can explicitly request another attempt.
@@ -77,7 +79,9 @@ The exported tools need Node.js 22.12 or newer and Git for source comparison, wi
 
 Both commands must succeed before delivering a playable package. If a required tool cannot run, report incomplete preparation and the unperformed check. The original `npm run validate-package -- <package path>` remains available from a Code Bearings checkout.
 
-Return the `.quiz.json` package with companion `<name>.preparation.md` and `<name>.independent-solutions.json` files in the resolved private destination. Do not overwrite existing files. The report identifies revision and fetchability, coverage/exclusions, verifier identity, independent-solving evidence, changes and dropped questions, validation/source-comparison results, and any unperformed checks. An agent-checked pilot does not establish actual session duration, learning effectiveness, browser compatibility, or accessibility.
+Keep the playable `<name>.quiz.json` directly in the resolved private destination. From the start of preparation, write supporting files into a sibling `<name>.review/` directory: the preparation report, independent solutions, candidate payload, coverage notes, review records, and any locally written logs. Preserve host-managed session state where the host requires it. Honor an explicitly requested output layout and do not overwrite existing files or reuse another run's review directory. This keeps the quiz easy to find in the file picker while preserving its review evidence.
+
+Return the playable file first, followed by links to the preparation report and independent solutions inside the review directory. The report identifies revision and fetchability, coverage/exclusions, verifier identity, independent-solving evidence, changes and dropped questions, validation/source-comparison results, and any unperformed checks. An agent-checked pilot does not establish actual session duration, learning effectiveness, browser compatibility, or accessibility.
 
 ## Coding-agent compatibility
 

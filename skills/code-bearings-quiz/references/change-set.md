@@ -57,6 +57,8 @@ What questions, explanations, and discussion may claim:
 
 Avoid questions about commit counts, authorship, or whether code was AI-generated; Git history does not establish the last.
 
+Use participant language for the selected version: “after this change,” “this version,” or simply the named behavior. Avoid unexplained phrases such as “head revision” and “head calculation” in questions, explanations, and discussion. Keep precise base/head terminology in provenance and preparation records; use it in teaching content only when Git revisions are themselves the topic, explaining the terms when needed.
+
 All excerpts, filenames, and line numbers come from head. Omit the optional `explorationSourceIds` field. Keep a private coverage table that maps each question to the affected behavior, the changed paths it depends on, and any unchanged context it uses.
 
 ## Verify

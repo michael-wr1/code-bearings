@@ -86,7 +86,7 @@ Save it to ~/quizzes/.
 
 A change set can also be a merge commit or a squashed commit that has already landed. Questions focus on what the range introduced or modified and how it connects to existing code; excerpts come from the head commit, and the package records the base commit too. Change-set quizzes default to **already working in the repo**.
 
-The agent creates the questions, asks a fresh verifier subagent to solve them from source before seeing the answer key, then has that verifier review the complete package. Preparation is incomplete if independent verification or required checks cannot run. The agent returns a `.quiz.json` file plus preparation and independent-solution records. Open the finalized quiz in the viewer; keep packages for private repositories and their supporting records in a private destination.
+The agent creates the questions, asks a fresh verifier subagent to solve them from source before seeing the answer key, then has that verifier review the complete package. Preparation is incomplete if independent verification or required checks cannot run. The agent returns a `.quiz.json` file, with supporting preparation and review records in a separate `<name>.review/` folder. Open the `.quiz.json` file in the viewer; keep packages for private repositories and their supporting records in a private destination.
 
 Once installed, the exported skill’s tools need **Node.js 22.12 or newer and Git**, with no npm dependencies or viewer checkout. See the [skill instructions](skills/code-bearings-quiz/SKILL.md), [preparation protocol](skills/code-bearings-quiz/references/preparation.md), and [package contract](skills/code-bearings-quiz/references/package-contract.md) for details.
 

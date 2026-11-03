@@ -20,6 +20,7 @@ async function openFixture(page) {
 async function start(page) {
   await openFixture(page);
   await page.getByRole('button', { name: 'Start quiz', exact: true }).click();
+  await expect(page.locator('.concept-label')).toHaveText('Topic: Component responsibilities');
 }
 async function choose(page, question, ids = question.answer.optionIds) {
   if (question.type === 'single-choice') {
@@ -63,7 +64,10 @@ test('answer each question directly, then inspect evidence and complete the reca
   await choose(page, fixture.payload.questions[0], ['view']);
   await expect(page.locator('.source-panel')).toHaveCount(0);
   await page.getByRole('button', { name: 'Reveal answer', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Worth revisiting', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Incorrect', exact: true })).toBeVisible();
+  await expect(page.locator('#answer-heading')).toBeFocused();
+  await expect(page.locator('#announcements')).toHaveText('Answer revealed. Incorrect.');
+  await expect(page.locator('.answer-label')).toHaveText(['✕ Incorrect · Selected', '✓ Correct · Not selected', '✕ Incorrect']);
   await expect(page.getByRole('heading', { name: 'Source references', exact: true })).toBeVisible();
   await expect(page.locator('.answer-explanation')).toHaveText(fixture.payload.questions[0].answer.explanation);
   await expect(page.locator('.question-workspace')).not.toContainText('false');
@@ -95,7 +99,7 @@ test('answer each question directly, then inspect evidence and complete the reca
   await expect(page.getByRole('heading', { name: /overall score|percentage|leaderboard/i })).toHaveCount(0);
   await page.locator('.recap-question').first().locator('summary').click();
   await expect(page.getByText(fixture.payload.questions[0].discussion[0].prompt, { exact: true })).toBeVisible();
-  await expect(page.locator('.recap-question').first().locator('.recap-outcome')).toHaveText('Worth revisiting');
+  await expect(page.locator('.recap-question').first().locator('.recap-outcome')).toHaveText('Incorrect');
   await expect(page.locator('.recap-question').nth(1).locator('.recap-outcome')).toHaveText('Not answered');
   await page.screenshot({ path: 'test-results/screenshots/recap-desktop.png', fullPage: true });
   await accessibility(page);
@@ -113,6 +117,8 @@ test('history navigation preserves drafts and sources, and an unsure final answe
   await page.getByRole('button', { name: 'I’m not sure', exact: true }).click();
   await expect(page.locator('#answer-heading')).toBeFocused();
   await expect(page.locator('#announcements')).toHaveText('Answer revealed. Not answered.');
+  await expect(page.locator('.answer-label')).toHaveText(['✕ Incorrect', '✓ Correct', '✕ Incorrect']);
+  await expect(page.locator('#answer-heading [aria-hidden]')).toHaveCount(0);
   await page.getByText('store.js', { exact: true }).click();
   await page.getByRole('button', { name: 'Next question', exact: true }).click();
   const selected = fixture.payload.questions[1].options[0];
@@ -137,6 +143,62 @@ test('history navigation preserves drafts and sources, and an unsure final answe
   await expect(page.locator('#page-title')).toHaveText('Learning recap');
   await expect(page.locator('#page-title')).toBeFocused();
   await expect(page.locator('.recap-outcome')).toHaveText(fixture.payload.questions.map(() => 'Not answered'));
+});
+
+test('multiple-select feedback distinguishes selected, missed, and incorrect options', async ({ page }) => {
+  await start(page);
+  await choose(page, fixture.payload.questions[0]);
+  await page.getByRole('button', { name: 'Reveal answer', exact: true }).click();
+  await expect(page.locator('.answer-label')).toHaveText(['✕ Incorrect', '✓ Correct · Selected', '✕ Incorrect']);
+  await page.getByRole('button', { name: 'Next question', exact: true }).click();
+  await choose(page, fixture.payload.questions[1], ['loader', 'website']);
+  await page.getByRole('button', { name: 'Reveal answer', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Incorrect', exact: true })).toBeVisible();
+  await expect(page.locator('.answer-label')).toHaveText([
+    '✓ Correct · Selected', '✓ Correct · Not selected', '✓ Correct · Not selected', '✕ Incorrect · Selected',
+  ]);
+  await accessibility(page);
+});
+
+test('long source lines wrap without losing indentation, blank lines, or line numbers', async ({ page }) => {
+  // Synthetic evidence exercises prose, code, and an unbroken token; no real review is claimed.
+  const wrapped = structuredClone(fixture);
+  const source = wrapped.payload.sources[0];
+  const lines = [
+    '// ' + 'A long source explanation with words to wrap. '.repeat(12),
+    '    const value = "' + 'x'.repeat(240) + '";',
+    '',
+    '\treturn value;',
+  ];
+  source.code = lines.join('\n');
+  source.endLine = source.startLine + lines.length - 1;
+  wrapped.verification.reviewedPayloadSha256 = await payloadDigest(wrapped.payload);
+  await page.locator('#package-file').setInputFiles({ name: 'wrapped.quiz.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(wrapped)) });
+  await page.getByRole('button', { name: 'Start quiz', exact: true }).click();
+  await page.getByRole('button', { name: 'I’m not sure', exact: true }).click();
+  const details = page.locator('#question-source-store-source');
+  await details.locator('summary').click();
+  expect(await details.locator('.line-text').allTextContents()).toEqual(lines);
+  await expect(details.locator('.line-number')).toHaveText(['1', '2', '3', '4']);
+  for (const width of [1440, 640, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const sizes = await details.locator('pre').evaluate((pre) => ({
+      scroll: pre.scrollWidth, client: pre.clientWidth,
+      pageScroll: document.documentElement.scrollWidth, viewport: innerWidth,
+      lineHeight: parseFloat(getComputedStyle(pre).lineHeight),
+      wrappedHeight: pre.querySelector('.line-text').getBoundingClientRect().height,
+    }));
+    expect(sizes.scroll).toBeLessThanOrEqual(sizes.client);
+    expect(sizes.pageScroll).toBeLessThanOrEqual(sizes.viewport);
+    expect(sizes.wrappedHeight).toBeGreaterThan(sizes.lineHeight);
+  }
+  await page.setViewportSize({ width: 640, height: 1000 });
+  await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+  expect(await details.locator('pre').evaluate((pre) => pre.scrollWidth <= pre.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await details.locator('.line-text').allTextContents()).toEqual(lines);
+  await accessibility(page);
+  await page.screenshot({ path: 'test-results/screenshots/wrapped-source-enlarged.png', fullPage: true });
 });
 
 test('file import, rejected replacement, and explicit replacement confirmation preserve session state', async ({ page }) => {

@@ -28,6 +28,8 @@ State the resolved scope, repository, branch/full SHA, change-set range and focu
 
 ## Prepare and verify
 
+Keep the playable file easy to find: use the [preparation protocol's output layout](references/preparation.md#5-finalize-and-report), with supporting records in a separate review directory from the start.
+
 Read the [preparation protocol](references/preparation.md), [package contract](references/package-contract.md), and [v1 schema](../../schema/quiz-package-v1.schema.json). Resolve resources relative to this skill's actual directory, independent of the user's working directory.
 
 Check early that Git, Node.js 22.12 or newer, and the bundled tools are available, and that a fresh independent subagent can run and inspect the committed source. If a requirement is unavailable, report incomplete preparation; never invent an agent identity, successful review, or self-review fallback. This request authorizes the protocol's verification delegation, subject to the environment's actual tool and permission availability.

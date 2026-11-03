@@ -291,11 +291,13 @@ function orderList(question, record) {
   });
   return list;
 }
-const outcomeLabel = (value) => value === 'correct' ? 'Correct' : value === 'unanswered' ? 'Not answered' : 'Worth revisiting';
+const outcomeLabel = (value) => value === 'correct' ? 'Correct' : value === 'unanswered' ? 'Not answered' : 'Incorrect';
+const correctnessIcon = (correct) => el('span', { class: 'correctness-icon', 'aria-hidden': 'true' }, correct ? '✓ ' : '✕ ');
 function resultView(question, record) {
   const result = outcome(question, record.response);
   const section = el('section', { class: `answer-section ${result}`, 'aria-labelledby': 'answer-heading' },
-    el('div', { class: 'outcome-heading' }, el('h2', { id: 'answer-heading', tabindex: '-1' }, outcomeLabel(result))),
+    el('div', { class: 'outcome-heading' }, el('h2', { id: 'answer-heading', tabindex: '-1' },
+      result !== 'unanswered' && correctnessIcon(result === 'correct'), outcomeLabel(result))),
     el('p', { class: 'answer-explanation' }, question.answer.explanation));
   const order = question.type === 'ordering' ? question.answer.optionIds : question.options.map((option) => option.id);
   const answerList = el(question.type === 'ordering' ? 'ol' : 'ul', { class: 'answer-list' });
@@ -304,9 +306,13 @@ function resultView(question, record) {
     const expected = question.answer.optionIds.includes(id);
     const chosen = record.response?.includes(id);
     const feedback = question.answer.optionFeedback.find((item) => item.optionId === id);
+    let selectionLabel = '';
+    if (chosen) selectionLabel = ' · Selected';
+    else if (expected && record.response) selectionLabel = ' · Not selected';
     answerList.append(el('li', { class: expected ? 'expected' : '' },
       el('div', { class: 'answer-option' }, el('strong', {}, option.text),
-        question.type !== 'ordering' && el('span', { class: 'answer-label' }, expected ? (chosen ? 'Expected · Selected' : 'Expected answer') : chosen ? 'Selected · Reconsider' : 'Alternative')),
+        question.type !== 'ordering' && el('span', { class: 'answer-label' },
+          correctnessIcon(expected), expected ? 'Correct' : 'Incorrect', selectionLabel)),
       el('p', {}, feedback.explanation)));
   }
   section.append(el('h3', {}, question.type === 'ordering' ? 'Reference sequence' : 'Answer details'), answerList);
@@ -323,7 +329,7 @@ function sourceDetail(source, record, reason, prefix) {
   if (reason) details.append(el('p', { class: 'source-reason' }, reason));
   const code = el('code');
   source.code.split('\n').forEach((line, index) => code.append(el('span', { class: 'code-line' },
-    el('span', { class: 'line-number', 'aria-hidden': 'true' }, source.startLine + index), el('span', { class: 'line-text' }, line || ' '))));
+    el('span', { class: 'line-number', 'aria-hidden': 'true' }, source.startLine + index), el('span', { class: 'line-text' }, line))));
   details.append(el('pre', { tabindex: '0', 'aria-label': `${source.path}, lines ${source.startLine} through ${source.endLine}` }, code));
   if (source.url) details.append(el('a', { class: 'source-link', href: source.url, target: '_blank', rel: 'noopener noreferrer', 'aria-label': `Open ${source.path} at this commit (opens in new tab)` }, 'Open at this commit ↗'));
   details.addEventListener('toggle', () => {
@@ -366,7 +372,7 @@ function questionView(main) {
   const concepts = question.conceptIds.map((id) => quiz.payload.learning.coverage.find((item) => item.id === id).title);
   main.append(el('div', { class: 'question-topline' },
     el('p', { class: 'eyebrow' }, `Question ${session.viewIndex + 1} of ${session.records.length}`),
-    el('p', { class: 'concept-label' }, concepts[0])));
+    el('p', { class: 'concept-label' }, `Topic: ${concepts[0]}`)));
   const layout = el('div', { class: `question-layout ${record.phase === 'attempt' ? 'attempt-layout' : ''}` });
   const work = el('div', { class: 'question-workspace' }, el('h1', { id: 'page-title', tabindex: '-1' }, question.prompt));
   if (record.phase === 'revealed') work.append(resultView(question, record), discussionView(question));
