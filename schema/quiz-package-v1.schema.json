@@ -568,7 +568,7 @@
           "items": {
             "$ref": "#/$defs/id"
           },
-          "minItems": 2,
+          "minItems": 3,
           "uniqueItems": true
         },
         "explanation": {
@@ -742,7 +742,7 @@
           "items": {
             "$ref": "#/$defs/option"
           },
-          "minItems": 2,
+          "minItems": 3,
           "maxItems": 12
         },
         "explorationSourceIds": {

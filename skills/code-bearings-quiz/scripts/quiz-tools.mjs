@@ -31,11 +31,19 @@ async function commit(checkout, revision, label) {
   try { return await text(checkout, ['rev-parse', '--verify', '--end-of-options', `${revision}^{commit}`]); }
   catch { throw new Error(`${label} does not identify a commit in this checkout: ${revision}`); }
 }
-async function reachableFromBranch(checkout, sha, branch) {
+async function branchRef(checkout, branch) {
   const refs = (await text(checkout, ['for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes'])).split('\n');
-  const candidates = refs.filter(ref => ref === `refs/heads/${branch}` || (ref.startsWith('refs/remotes/') && ref.slice('refs/remotes/'.length).split('/').slice(1).join('/') === branch));
-  for (const ref of candidates) if (await predicate(checkout, ['merge-base', '--is-ancestor', sha, ref])) return true;
-  return false;
+  if (branch.startsWith('refs/')) return refs.includes(branch) ? branch : null;
+  const exact = refs.filter(ref => ref === `refs/heads/${branch}` || ref === `refs/remotes/${branch}`);
+  // Only fall back to a remote's bare branch name when there is no exact ref.
+  const candidates = exact.length ? exact : refs.filter(ref =>
+    ref.startsWith('refs/remotes/') && ref.slice('refs/remotes/'.length).split('/').slice(1).join('/') === branch);
+  if (candidates.length > 1) throw new Error(`Branch is ambiguous; use a fully qualified ref: ${branch}`);
+  return candidates[0] ?? null;
+}
+async function reachableFromBranch(checkout, sha, branch) {
+  const ref = await branchRef(checkout, branch);
+  return ref ? predicate(checkout, ['merge-base', '--is-ancestor', sha, ref]) : false;
 }
 const pathspecs = (focusPaths = []) => focusPaths.length ? ['--', ...focusPaths.map(path => `:(literal)${path}`)] : [];
 async function mergeBases(checkout, comparison, head) {
@@ -111,7 +119,9 @@ async function resolveRange(checkout, headRevision, options) {
     if (!(await predicate(checkout, ['merge-base', '--is-ancestor', base, head]))) throw new Error('The base commit is not an ancestor of head. Choose an ancestor or a branch comparison.');
     selection = { method: 'explicit' };
   } else {
-    const comparison = await commit(checkout, options.compare, 'Comparison branch');
+    const ref = await branchRef(checkout, options.compare);
+    if (!ref) throw new Error(`Comparison branch does not identify a branch in this checkout: ${options.compare}`);
+    const comparison = await commit(checkout, ref, 'Comparison branch');
     const bases = await mergeBases(checkout, comparison, head);
     if (bases.length === 0) throw new Error('Head and the comparison branch share no history in this checkout.');
     if (bases.length > 1) throw new Error(`Head and the comparison branch have ${bases.length} merge bases (${bases.join(', ')}). Choose an explicit base.`);

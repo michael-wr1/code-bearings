@@ -56,6 +56,19 @@ test('exported tools validate a package from an isolated installation without np
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /8 questions/);
 });
+test('exported validator and schema enforce the three-item ordering minimum', async () => {
+  const quiz = structuredClone(fixture);
+  const question = quiz.payload.questions.find((item) => item.type === 'ordering');
+  question.options = question.options.slice(0, 2);
+  question.answer.optionIds = question.options.map((option) => option.id).reverse();
+  question.answer.optionFeedback = question.answer.optionFeedback.filter((item) => question.answer.optionIds.includes(item.optionId));
+  const result = await run('validate', await writePackage('two-items.quiz.json', quiz));
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /invalid-structure/);
+  const schema = JSON.parse(await readFile(join(directory, 'installed-skill/assets/quiz-package-v1.schema.json'), 'utf8'));
+  assert.equal(schema.$defs.ordering.properties.options.minItems, 3);
+  assert.equal(schema.$defs['answer-ordering'].properties.optionIds.minItems, 3);
+});
 test('exported digest matches the viewer canonicalization and rejects an envelope', async () => {
   const result = await run('digest', payloadPath);
   assert.equal(result.code, 0, result.stderr);

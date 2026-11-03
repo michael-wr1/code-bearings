@@ -108,6 +108,37 @@ test('answer each question directly, then inspect evidence and complete the reca
   await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
 });
 
+test('history navigation preserves drafts and sources, and an unsure final answer opens recap', async ({ page }) => {
+  await start(page);
+  await page.getByRole('button', { name: 'I’m not sure', exact: true }).click();
+  await expect(page.locator('#answer-heading')).toBeFocused();
+  await expect(page.locator('#announcements')).toHaveText('Answer revealed. Not answered.');
+  await page.getByText('store.js', { exact: true }).click();
+  await page.getByRole('button', { name: 'Next question', exact: true }).click();
+  const selected = fixture.payload.questions[1].options[0];
+  await choose(page, fixture.payload.questions[1], [selected.id]);
+
+  await page.getByRole('button', { name: 'Question 1, reviewed', exact: true }).click();
+  await expect(page.getByText('src/store.js', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Next question', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Return to current question', exact: true }).click();
+  await expect(page.locator('#page-title')).toBeFocused();
+  await expect(page.getByRole('checkbox', { name: selected.text, exact: true })).toBeChecked();
+
+  for (let index = 1; index < fixture.payload.questions.length; index++) {
+    await page.getByRole('button', { name: 'I’m not sure', exact: true }).click();
+    await expect(page.locator('#answer-heading')).toBeFocused();
+    if (index < fixture.payload.questions.length - 1) {
+      await page.getByRole('button', { name: 'Next question', exact: true }).click();
+    }
+  }
+  await expect(page.getByRole('button', { name: 'Next question', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'View learning recap', exact: true }).click();
+  await expect(page.locator('#page-title')).toHaveText('Learning recap');
+  await expect(page.locator('#page-title')).toBeFocused();
+  await expect(page.locator('.recap-outcome')).toHaveText(fixture.payload.questions.map(() => 'Not answered'));
+});
+
 test('file import, rejected replacement, and explicit replacement confirmation preserve session state', async ({ page }) => {
   await page.locator('#package-file').setInputFiles(packagePath);
   await page.getByRole('button', { name: 'Start quiz', exact: true }).click();

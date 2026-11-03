@@ -205,19 +205,34 @@ function guideStep(number, title, description) {
 }
 function readyView(main) {
   const payload = quiz.payload;
-  main.append(el('h1', { id: 'page-title', tabindex: '-1' }, payload.title),
+  main.append(
+    el('h1', { id: 'page-title', tabindex: '-1' }, payload.title),
     el('p', { class: 'quiz-facts' }, `${payload.questions.length} questions · ${payload.learning.targetMinutes}-minute target · ${payload.learning.familiarity === 'new-to-repo' ? 'New to the repo' : 'Already working in the repo'}`),
     el('p', { class: 'scope-label' }, payload.learning.scope === 'change-set' ? 'Change set' : 'Repository overview'),
-    el('section', { class: 'coverage', 'aria-labelledby': 'coverage-title' },
-      el('h2', { id: 'coverage-title' }, 'The map you’ll build'),
-      el('ol', { class: 'coverage-list' }, payload.learning.coverage.map((concept, index) => el('li', {},
-        el('span', { class: 'coverage-number', 'aria-hidden': 'true' }, String(index + 1).padStart(2, '0')),
-        el('div', {}, el('h3', {}, concept.title), el('p', {}, concept.summary)))))),
-    el('details', { class: 'exclusions' }, el('summary', {}, 'What this quiz leaves for later'),
-      el('ul', {}, payload.learning.exclusions.map((item) => el('li', {}, item)))),
-    el('div', { class: 'ready-footer' },
-      button('Start quiz', () => { session = new QuizSession(quiz); render(); focus(); say('Question 1. Choose an answer.'); }, 'primary')),
   );
+
+  const coverageList = el('ol', { class: 'coverage-list' });
+  payload.learning.coverage.forEach((concept, index) => {
+    const number = el('span', { class: 'coverage-number', 'aria-hidden': 'true' }, String(index + 1).padStart(2, '0'));
+    const description = el('div', {}, el('h3', {}, concept.title), el('p', {}, concept.summary));
+    coverageList.append(el('li', {}, number, description));
+  });
+  const coverage = el('section', { class: 'coverage', 'aria-labelledby': 'coverage-title' },
+    el('h2', { id: 'coverage-title' }, 'The map you’ll build'), coverageList);
+  main.append(coverage);
+
+  const exclusions = el('details', { class: 'exclusions' },
+    el('summary', {}, 'What this quiz leaves for later'),
+    el('ul', {}, payload.learning.exclusions.map((item) => el('li', {}, item))));
+  main.append(exclusions);
+
+  const start = button('Start quiz', () => {
+    session = new QuizSession(quiz);
+    render();
+    focus();
+    say('Question 1. Choose an answer.');
+  }, 'primary');
+  main.append(el('div', { class: 'ready-footer' }, start));
 }
 function updateResponseActions() {
   document.querySelector('#submit-response')?.toggleAttribute('disabled', !session.canAnswer());
@@ -359,16 +374,40 @@ function questionView(main) {
     work.append(responseControls(question, record),
       el('div', { class: 'actions question-actions' },
         button('Reveal answer', () => {
-          session.reveal(); render(); focus('answer-heading'); say(`Answer revealed. ${outcomeLabel(outcome(question, record.response))}.`);
+          session.reveal();
+          render();
+          focus('answer-heading');
+          say(`Answer revealed. ${outcomeLabel(outcome(question, record.response))}.`);
         }, 'primary', { id: 'submit-response', disabled: !session.canAnswer() }),
         button('I’m not sure', () => {
-          session.reveal(true); render(); focus('answer-heading'); say('Answer revealed. Not answered.');
+          session.reveal(true);
+          render();
+          focus('answer-heading');
+          say('Answer revealed. Not answered.');
         }, 'text')));
   }
   if (record.phase === 'revealed') {
-    const nextAction = session.complete ? button(session.viewIndex === session.activeIndex ? 'View learning recap' : 'Back to learning recap', () => { session.recap(); render(); focus(); }, 'primary')
-      : session.viewIndex !== session.activeIndex ? button('Return to current question', () => { session.review(session.activeIndex); render(); focus(); }, 'primary')
-        : button(session.activeIndex === session.records.length - 1 ? 'View learning recap' : 'Next question', () => { session.next(); render(); focus(); }, 'primary');
+    let nextAction;
+    if (session.complete) {
+      const label = session.viewIndex === session.activeIndex ? 'View learning recap' : 'Back to learning recap';
+      nextAction = button(label, () => {
+        session.recap();
+        render();
+        focus();
+      }, 'primary');
+    } else if (session.viewIndex !== session.activeIndex) {
+      nextAction = button('Return to current question', () => {
+        session.review(session.activeIndex);
+        render();
+        focus();
+      }, 'primary');
+    } else {
+      nextAction = button('Next question', () => {
+        session.next();
+        render();
+        focus();
+      }, 'primary');
+    }
     work.append(el('div', { class: 'next-action' }, nextAction));
   }
   layout.append(work);
@@ -377,32 +416,64 @@ function questionView(main) {
 }
 function recapView(main) {
   const questions = quiz.payload.questions;
+  main.append(el('h1', { id: 'page-title', tabindex: '-1' }, 'Learning recap'));
+
+  const conceptList = el('ul', { class: 'concept-list' });
+  for (const concept of quiz.payload.learning.coverage) {
+    conceptList.append(el('li', {}, el('strong', {}, concept.title), el('p', {}, concept.summary)));
+  }
+  const coverage = el('section', { class: 'recap-coverage', 'aria-labelledby': 'recap-concepts' },
+    el('h2', { id: 'recap-concepts' }, 'Concepts covered'), conceptList);
+  main.append(coverage);
+
   const revisit = questions.map((question, index) => ({ question, record: session.records[index], index }))
     .filter(({ question, record }) => outcome(question, record.response) !== 'correct');
-  main.append(el('h1', { id: 'page-title', tabindex: '-1' }, 'Learning recap'),
-    el('section', { class: 'recap-coverage', 'aria-labelledby': 'recap-concepts' },
-      el('h2', { id: 'recap-concepts' }, 'Concepts covered'),
-      el('ul', { class: 'concept-list' }, quiz.payload.learning.coverage.map((concept) => el('li', {}, el('strong', {}, concept.title), el('p', {}, concept.summary))))),
-    el('section', { class: 'revisit-section', 'aria-labelledby': 'revisit-title' },
-      el('h2', { id: 'revisit-title' }, 'Worth revisiting'),
-      revisit.length ? el('ul', {}, revisit.map(({ question, index }) => el('li', {}, button(`Question ${index + 1}: ${question.prompt}`, () => { session.review(index); render(); focus(); }, 'text'))))
-        : el('p', {}, 'Your answers matched the reference answers.')),
-    el('section', { class: 'recap-questions', 'aria-labelledby': 'recap-questions-title' },
-      el('h2', { id: 'recap-questions-title' }, 'Questions and discussion'),
-      questions.map((question, index) => {
-        const record = session.records[index];
-        const result = outcome(question, record.response);
-        return el('details', { class: 'recap-question' },
-          el('summary', {}, el('span', { class: 'recap-number', 'aria-hidden': 'true' }, String(index + 1).padStart(2, '0')),
-            el('span', {}, el('strong', {}, question.prompt),
-              el('span', { class: 'recap-outcome' }, outcomeLabel(result)))),
-          el('p', { class: 'recap-explanation' }, question.answer.explanation),
-          el('ul', { class: 'recap-discussions' }, question.discussion.map((topic) => el('li', {}, topic.prompt))),
-          button('Review question and source', () => { session.review(index); render(); focus(); }, 'secondary'),
-        );
-      })),
-    el('div', { class: 'recap-footer actions' }, button('Start another session', restart, 'primary'), button('End session', endSession, 'secondary')),
-  );
+  const revisitSection = el('section', { class: 'revisit-section', 'aria-labelledby': 'revisit-title' },
+    el('h2', { id: 'revisit-title' }, 'Worth revisiting'));
+  if (revisit.length) {
+    const revisitList = el('ul');
+    for (const { question, index } of revisit) {
+      const review = button(`Question ${index + 1}: ${question.prompt}`, () => {
+        session.review(index);
+        render();
+        focus();
+      }, 'text');
+      revisitList.append(el('li', {}, review));
+    }
+    revisitSection.append(revisitList);
+  } else {
+    revisitSection.append(el('p', {}, 'Your answers matched the reference answers.'));
+  }
+  main.append(revisitSection);
+
+  const questionSection = el('section', { class: 'recap-questions', 'aria-labelledby': 'recap-questions-title' },
+    el('h2', { id: 'recap-questions-title' }, 'Questions and discussion'));
+  questions.forEach((question, index) => {
+    const record = session.records[index];
+    const result = outcome(question, record.response);
+    const number = el('span', { class: 'recap-number', 'aria-hidden': 'true' }, String(index + 1).padStart(2, '0'));
+    const heading = el('span', {},
+      el('strong', {}, question.prompt),
+      el('span', { class: 'recap-outcome' }, outcomeLabel(result)));
+    const discussions = el('ul', { class: 'recap-discussions' },
+      question.discussion.map((topic) => el('li', {}, topic.prompt)));
+    const review = button('Review question and source', () => {
+      session.review(index);
+      render();
+      focus();
+    }, 'secondary');
+    const details = el('details', { class: 'recap-question' },
+      el('summary', {}, number, heading),
+      el('p', { class: 'recap-explanation' }, question.answer.explanation),
+      discussions, review);
+    questionSection.append(details);
+  });
+  main.append(questionSection);
+
+  const footer = el('div', { class: 'recap-footer actions' },
+    button('Start another session', restart, 'primary'),
+    button('End session', endSession, 'secondary'));
+  main.append(footer);
 }
 function render() {
   const shell = el('div', { class: `app-layout ${quiz ? 'has-quiz' : ''}` });

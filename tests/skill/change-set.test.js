@@ -118,6 +118,56 @@ test('an explicit base must be an ancestor of head', async () => {
   assert.equal(invalid.code, 1);
   assert.match(invalid.stderr, /not an ancestor/);
 });
+test('remote-qualified comparison selections round-trip through source verification', async () => {
+  await git('update-ref', 'refs/remotes/origin/main', sha.M2);
+  await git('update-ref', 'refs/remotes/other/main', sha.M0);
+  for (const branch of ['origin/main', 'refs/remotes/origin/main', 'refs/heads/main']) {
+    const resolved = await run('resolve-range', checkout, 'feature', '--compare', branch);
+    assert.equal(resolved.code, 0, resolved.stderr);
+    const range = JSON.parse(resolved.stdout);
+    assert.equal(range.selection.comparisonBranch, branch);
+    assert.equal(range.selection.comparisonCommitSha, sha.M2);
+    const path = await writePackage('remote-comparison.quiz.json', (payload) => {
+      payload.changeSet.selection = range.selection;
+      payload.changeSet.baseCommitSha = range.baseCommitSha;
+    });
+    const verified = await run('verify-sources', path, checkout);
+    assert.equal(verified.code, 0, verified.stderr);
+  }
+  const wrongRemote = await writePackage('wrong-remote.quiz.json', (payload) => {
+    payload.changeSet.selection.comparisonBranch = 'other/main';
+  });
+  const rejected = await run('verify-sources', wrongRemote, checkout);
+  assert.equal(rejected.code, 1);
+  assert.match(rejected.stderr, /comparison branch/);
+});
+test('branch lookup preserves slash names and falls back to an unambiguous remote', async () => {
+  await git('update-ref', 'refs/heads/release/current', sha.M2);
+  await git('update-ref', 'refs/remotes/origin/release/previous', sha.M1);
+  for (const [branch, expected] of [['release/current', sha.M2], ['release/previous', sha.M1]]) {
+    const resolved = await run('resolve-range', checkout, 'feature', '--compare', branch);
+    assert.equal(resolved.code, 0, resolved.stderr);
+    const range = JSON.parse(resolved.stdout);
+    assert.equal(range.selection.comparisonCommitSha, expected);
+    const path = await writePackage('slash-branch.quiz.json', (payload) => {
+      payload.changeSet.selection = range.selection;
+    });
+    const verified = await run('verify-sources', path, checkout);
+    assert.equal(verified.code, 0, verified.stderr);
+  }
+  await git('update-ref', 'refs/remotes/other/release/previous', sha.M2);
+  const ambiguous = await run('resolve-range', checkout, 'feature', '--compare', 'release/previous');
+  assert.equal(ambiguous.code, 1);
+  assert.match(ambiguous.stderr, /ambiguous/);
+});
+test('comparison selection rejects missing branches and non-branch revisions', async () => {
+  await git('tag', 'comparison-tag', sha.M2);
+  for (const branch of ['missing', 'missing/main', sha.M2, 'main^', 'comparison-tag']) {
+    const result = await run('resolve-range', checkout, 'feature', '--compare', branch);
+    assert.equal(result.code, 1, branch);
+    assert.match(result.stderr, /does not identify a branch/, branch);
+  }
+});
 test('already-merged work explains how to select the merge commit', async () => {
   const merged = await run('resolve-range', checkout, sha.F1, '--compare', 'integration');
   assert.equal(merged.code, 1);

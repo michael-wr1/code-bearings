@@ -35,6 +35,19 @@ test('review must include answer evidence', rejected((p) => p.verification.quest
 test('unknown evidence ID is rejected', rejected((p) => p.payload.questions[0].answer.evidence[0].sourceId = 'unknown', 'invalid-reference'));
 test('duplicate option IDs are rejected', rejected((p) => p.payload.questions[0].options[1].id = 'view', 'invalid-reference'));
 test('ordering must contain every item', rejected((p) => p.payload.questions[3].answer.optionIds.pop(), 'invalid-answer'));
+test('ordering requires at least three items even with a consistent synthetic digest', async () => {
+  const quiz = structuredClone(fixture);
+  const question = quiz.payload.questions.find((item) => item.type === 'ordering');
+  question.options = question.options.slice(0, 2);
+  question.answer.optionIds = question.options.map((option) => option.id).reverse();
+  question.answer.optionFeedback = question.answer.optionFeedback.filter((item) => question.answer.optionIds.includes(item.optionId));
+  quiz.verification.reviewedPayloadSha256 = await payloadDigest(quiz.payload);
+  await assert.rejects(importPackageText(JSON.stringify(quiz)), (error) => error.code === 'invalid-structure');
+});
+test('three-item ordering remains valid', async () => {
+  const quiz = await importPackageText(raw);
+  assert.ok(quiz.payload.questions.some((question) => question.type === 'ordering' && question.options.length === 3));
+});
 test('initial ordering cannot expose the answer sequence', rejected((p) => {
   const q = p.payload.questions[3];
   q.options = q.answer.optionIds.map((id) => q.options.find((option) => option.id === id));

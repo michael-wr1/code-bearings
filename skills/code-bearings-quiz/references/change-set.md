@@ -22,6 +22,8 @@ node <skill-directory>/scripts/quiz-tools.mjs resolve-range <checkout> <head-sha
 node <skill-directory>/scripts/quiz-tools.mjs resolve-range <checkout> <head-sha> --base <commit> [--focus <path>]...
 ```
 
+`--compare` requires a branch: a local name such as `main`, a remote-qualified name such as `origin/main`, or a full branch ref. Bare names fall back to an unambiguous remote-tracking branch when no exact branch ref exists. Use a full ref when names are ambiguous. Commit SHAs, tags, and revision expressions are supported for head and `--base`, but not for `--compare`. Resolution and source verification use the same branch lookup.
+
 It prints the head and base SHAs, the `selection` record for the package, and the changed files (with renames). It fails, and you should ask the facilitator, when:
 
 - the base is not an ancestor of head;

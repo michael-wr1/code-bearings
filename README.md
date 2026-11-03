@@ -129,6 +129,8 @@ npm run validate-package -- examples/code-bearings.quiz.json
 
 Import checks confirm package structure, references, and consistency with its recorded review and payload digest. They do not authenticate an agent identity or prove source correctness; those checks belong to preparation and independent source review. The [v1 schema](schema/quiz-package-v1.schema.json) and package contract describe the format. [AGENTS.md](AGENTS.md) provides repository guidance for coding agents.
 
+Ordering questions now require at least three items. Earlier v1 packages with two-item ordering questions are rejected; their authors must revise and independently re-review them. Use single-choice questions for two-step relationships.
+
 ## License
 
 Code Bearings, its preparation skill, and the included Code Bearings example are licensed under the [MIT License](LICENSE).

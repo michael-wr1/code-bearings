@@ -32,7 +32,7 @@ Assess the major components, entry points, ownership boundaries, and dependencie
 
 ## 2. Generate a candidate
 
-Use only single-choice, multiple-select, and ordering. Favor responsibilities, dependencies, and execution paths; avoid spelling quizzes and speculative design rationale.
+Use only single-choice, multiple-select, and ordering. Ordering questions need at least three meaningful items; use single-choice for a two-step relationship rather than padding the sequence. Favor responsibilities, dependencies, and execution paths; avoid spelling quizzes and speculative design rationale.
 
 Produce a payload according to [the contract](package-contract.md) and [schema](../../../schema/quiz-package-v1.schema.json), with exact committed excerpts and original line ranges. Include explanations for all alternatives/items and source-backed discussion prompts. Provide all source references required by the v1 contract. Omit the optional `explorationSourceIds` field, which remains only so earlier packages stay valid. The viewer hides source filenames and excerpts until answer reveal; there is no intermediate exploration/revision phase.
 
