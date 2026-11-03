@@ -34,7 +34,7 @@ function button(label, action, kind = 'secondary', props = {}) {
 }
 function say(message) { announcements.textContent = message; }
 function focus(id = 'page-title') {
-  document.getElementById(id)?.focus({ preventScroll: true });
+  document.getElementById(id)?.focus();
 }
 function confirm(title, description, label, action) {
   const previousFocus = document.activeElement;

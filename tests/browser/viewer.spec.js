@@ -291,6 +291,28 @@ test('keyboard navigation, ordering and mobile reflow stay usable', async ({ pag
   await expect(page.getByRole('heading', { name: 'Correct', exact: true })).toBeVisible();
 });
 
+test('keyboard transitions bring focused headings into the magnified viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 234 });
+  await openFixture(page);
+  const activate = async (name) => {
+    await page.getByRole('button', { name, exact: true }).focus();
+    await page.keyboard.press('Enter');
+  };
+  const headingVisible = async (id) => {
+    await expect(page.locator(id)).toBeFocused();
+    await expect(page.locator(id)).toBeInViewport();
+  };
+  await activate('Start quiz');
+  await headingVisible('#page-title');
+  for (let index = 0; index < fixture.payload.questions.length; index++) {
+    await activate('I’m not sure');
+    await headingVisible('#answer-heading');
+    await activate(index === fixture.payload.questions.length - 1 ? 'View learning recap' : 'Next question');
+    await headingVisible('#page-title');
+  }
+  await expect(page.locator('#page-title')).toHaveText('Learning recap');
+});
+
 test('a change-set quiz shows its range and distinguishes files that share a name', async ({ page }) => {
   const changePath = new URL('../fixtures/change-set.quiz.json', import.meta.url).pathname;
   const change = JSON.parse(await readFile(changePath, 'utf8'));
