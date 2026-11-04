@@ -17,7 +17,7 @@ Use it on your own or share a browser window in a team call. Answer a question, 
 
 ## Try the example
 
-If you have a prepared viewer or skill archive, follow the [download instructions](docs/downloads.md) to use it without building from source. CI produces candidate archives; a tagged public release has not yet been published.
+Download the viewer, preparation skill, and example from the [v0.1.0 early preview release](https://github.com/michael-wr1/code-bearings/releases/tag/v0.1.0). Follow the [download instructions](docs/downloads.md) to use the archives without building from source.
 
 Requires **Node.js 22.12 or newer**, npm, and Git. These commands use POSIX shell syntax; setup has been exercised on macOS and in Ubuntu CI.
 
