@@ -30,6 +30,14 @@ function httpsLink(value, code, label, path) {
   try { url = new URL(value); } catch { fail(code, `${label} is not a valid HTTPS URL.`, path); }
   if (url.protocol !== 'https:' || url.username || url.password) fail(code, `${label}s must use HTTPS without embedded credentials.`, path);
 }
+function credentialFreeCloneUrl(value) {
+  let url;
+  // SCP-style SSH remotes are not URLs; preserve their user@host:path syntax.
+  try { url = new URL(value); } catch { return; }
+  if (url.password || (['http:', 'https:'].includes(url.protocol) && url.username)) {
+    fail('invalid-structure', 'Clone URLs must not contain embedded credentials. Use a credential-free HTTPS URL or an SSH remote without a password.', '/payload/repository/cloneUrl');
+  }
+}
 function validateChangeSet(payload) {
   const { changeSet } = payload;
   if (!changeSet) return;
@@ -55,6 +63,7 @@ export async function validatePackage(data) {
     fail(code, `Package field ${path} ${error.message}.`, path);
   }
   const { payload, verification } = data;
+  credentialFreeCloneUrl(payload.repository.cloneUrl);
   validTimestamp(payload.preparation.createdAt, '/payload/preparation/createdAt');
   validTimestamp(verification.verifiedAt, '/verification/verifiedAt');
   unique(payload.sources.map((source) => source.id), '/payload/sources');

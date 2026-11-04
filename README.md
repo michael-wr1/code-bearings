@@ -94,15 +94,16 @@ Once installed, the exported skill’s tools need **Node.js 22.12 or newer and G
 
 ## Tested environments and project status
 
-Code Bearings is an **unsupported early preview** shared as a personal project. Use it at your own risk. Support, responses, fixes, and continued maintenance are not promised. Pull requests are not reviewed or accepted.
+Code Bearings is an **unsupported early preview** by [Michael Pellegrin](https://github.com/michael-wr1). Use it at your own risk. Support, responses, fixes, and continued maintenance are not promised. Pull requests are not reviewed or accepted.
 
 Bug reports are welcome through [GitHub Issues](https://github.com/michael-wr1/code-bearings/issues). Include reproduction steps, your browser and runtime versions, and a minimal fictional example if needed. Do not upload private quiz packages, source excerpts, credentials, or preparation reports.
 
 - **Viewer:** Chromium through Playwright 1.58.2 on macOS and Ubuntu 24.04, including offline playback and keyboard ordering. A guided maintainer trial also exercised Firefox on macOS; its version was not recorded.
+- **Accessibility:** Automated checks covered eight viewer states in Chromium 145 and Playwright WebKit 26.0, including narrow layouts, enlarged text, and text spacing; Chromium also passed checks at 200% and 400% browser zoom. Targeted agent-operated checks with real VoiceOver 10 on macOS 27.0.1 and Chromium exercised question navigation, answer controls and feedback, source excerpts, ordering, and restart-dialog focus. WebKit checks used viewport reflow, not native Safari zoom.
 - **Preparation:** Codex CLI 0.162.1 and 0.166.0, and Claude Code 2.1.293 on macOS, using installed skills and actual independent verifier subagents.
 - **Runtimes used for these checks:** Node.js 23.11.0 on macOS 27.0.1; Node.js 22.12.0 and 24.22.1 on Ubuntu 24.04 CI. Extracted viewer and skill archives are checked in CI as well.
 
-Other environments have not yet been verified. Automated accessibility checks have passed; real screen-reader use and unassisted participant trials remain untested. The maintainer trial is not independent usability evidence. Session duration and learning effectiveness have not been measured. For automated Claude Code print-mode runs, leave session persistence enabled so the verifier can continue from blind solving to full review in a separate invocation.
+Other environments have not yet been verified. The accessibility checks do not establish conformance or replace unassisted testing by screen-reader users. Unassisted participant trials remain untested, and the maintainer trial is not independent usability evidence. Session duration and learning effectiveness have not been measured. For automated Claude Code print-mode runs, leave session persistence enabled so the verifier can continue from blind solving to full review in a separate invocation.
 
 ## Build and check
 

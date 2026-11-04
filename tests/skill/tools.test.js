@@ -56,6 +56,17 @@ test('exported tools validate a package from an isolated installation without np
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /8 questions/);
 });
+test('exported validator rejects clone credentials and accepts SSH usernames', async () => {
+  const quiz = structuredClone(fixture);
+  quiz.payload.repository.cloneUrl = 'https://fictional-token@example.invalid/team/repo.git';
+  const rejected = await run('validate', await writePackage('credentials.quiz.json', quiz));
+  assert.equal(rejected.code, 1);
+  assert.match(rejected.stderr, /invalid-structure/);
+  assert.doesNotMatch(rejected.stderr, /fictional-token/);
+  quiz.payload.repository.cloneUrl = 'git@example.invalid:team/repo.git';
+  const accepted = await run('validate', await writePackage('ssh.quiz.json', quiz));
+  assert.equal(accepted.code, 0, accepted.stderr);
+});
 test('exported validator and schema enforce the three-item ordering minimum', async () => {
   const quiz = structuredClone(fixture);
   const question = quiz.payload.questions.find((item) => item.type === 'ordering');

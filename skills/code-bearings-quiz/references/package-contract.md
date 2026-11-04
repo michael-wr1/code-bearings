@@ -28,7 +28,7 @@ The schema uses [JSON Schema Draft 2020-12](https://json-schema.org/draft/2020-1
 
 Scope is `repository-overview` or `change-set`. Familiarity is `new-to-repo` or `working-in-repo`; these are preparation inputs, not runtime question transformations. `targetMinutes` is a positive safe integer, default 25, with no countdown during play. Coverage items have an `id`, `title`, and `summary`; question `conceptIds` refer to those IDs.
 
-`cloneUrl` is displayed/copied as text and never executed. It can represent an HTTPS or SSH Git remote; preparation must not embed credentials. Branch provides context, while the SHA identifies the committed source. Format v1 accepts full 40-character SHA-1 commit IDs; support for SHA-256 Git repositories is deferred to a later format version.
+`cloneUrl` is displayed/copied as text and never executed. It can represent an HTTPS or SSH Git remote; preparation must not embed credentials. Shared validation rejects HTTP(S) URLs containing user information and any parsed URL containing a password. Normal SSH usernames remain valid, including `ssh://git@example.invalid/team/repo.git` and `git@example.invalid:team/repo.git`. This guard does not replace preparation's inspection for secrets elsewhere in a remote or package. Branch provides context, while the SHA identifies the committed source. Format v1 accepts full 40-character SHA-1 commit IDs; support for SHA-256 Git repositories is deferred to a later format version.
 
 ## Change set
 

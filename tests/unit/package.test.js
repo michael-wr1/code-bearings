@@ -23,6 +23,34 @@ test('formatting and property order do not invalidate a review', async () => {
   copy.payload = Object.fromEntries(Object.entries(copy.payload).reverse());
   await importPackageText(JSON.stringify(copy, null, 4));
 });
+test('clone URLs reject embedded credentials even with a matching synthetic digest', async () => {
+  for (const cloneUrl of [
+    'https://example-user:fictional-password@example.invalid/team/repo.git',
+    'https://fictional-token@example.invalid/team/repo.git',
+    'http://example-user@example.invalid/team/repo.git',
+    'https://fictional%2Dtoken@example.invalid/team/repo.git',
+    'ssh://git:fictional-password@example.invalid/team/repo.git',
+  ]) {
+    const quiz = structuredClone(fixture);
+    quiz.payload.repository.cloneUrl = cloneUrl;
+    quiz.verification.reviewedPayloadSha256 = await payloadDigest(quiz.payload);
+    await assert.rejects(importPackageText(JSON.stringify(quiz)), (error) =>
+      error.code === 'invalid-structure' && error.path === '/payload/repository/cloneUrl'
+      && !error.message.includes(cloneUrl));
+  }
+});
+test('credential-free HTTPS and normal SSH clone URLs remain unchanged on import', async () => {
+  for (const cloneUrl of [
+    'https://example.invalid/team/repo.git',
+    'ssh://git@example.invalid:2222/team/repo.git',
+    'git@example.invalid:team/repo.git',
+  ]) {
+    const quiz = structuredClone(fixture);
+    quiz.payload.repository.cloneUrl = cloneUrl;
+    quiz.verification.reviewedPayloadSha256 = await payloadDigest(quiz.payload);
+    assert.equal(canonicalize(await importPackageText(JSON.stringify(quiz))), canonicalize(quiz));
+  }
+});
 test('content changed after review is rejected', rejected((p) => p.payload.questions[0].prompt += ' edited', 'stale-verification'));
 test('unsupported package version is rejected', rejected((p) => p.formatVersion = '2.0', 'unsupported-version'));
 test('absent review is rejected', rejected((p) => delete p.verification, 'incomplete-verification'));
